@@ -88,25 +88,28 @@ function BulkEmailUploader({ eventId, onQueued }) {
   };
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <h3 className="text-base font-semibold text-slate-800">Bulk Email Queue</h3>
-      <p className="mt-2 text-sm text-slate-500">
-  Upload a CSV or enter recipients manually. Seats are automatically assigned in order starting from Row A / Seat 1. Names are optional.
-      </p>
+    <div className="glass-card flex h-full flex-col gap-6 p-6">
+      <div className="space-y-2">
+        <p className="glass-section-label">Bulk email queue</p>
+        <h3 className="text-lg font-semibold text-white">Ticket delivery automation</h3>
+        <p className="text-sm text-slate-200/80">
+          Upload a CSV or paste recipients to queue personalized tickets. Seats are auto-assigned in order starting at Row A · Seat 1.
+        </p>
+      </div>
 
-      <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-5">
         <div className="space-y-2">
-          <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">CSV upload</label>
+          <label className="input-label">CSV upload</label>
           <input
             ref={fileInputRef}
             type="file"
             accept=".csv"
-            className="block w-full text-sm text-slate-600 file:mr-4 file:rounded-md file:border-0 file:bg-brand file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-brand-dark"
+            className="block w-full text-sm text-slate-200 file:mr-4 file:rounded-xl file:border-0 file:bg-gradient-to-r file:from-sky-500 file:via-indigo-500 file:to-purple-500 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:brightness-110"
           />
         </div>
 
         <div className="space-y-2">
-          <label className="text-xs font-semibold uppercase tracking-wide text-slate-500" htmlFor="manual-list">
+          <label className="input-label" htmlFor="manual-list">
             Manual entries
           </label>
           <textarea
@@ -115,15 +118,15 @@ function BulkEmailUploader({ eventId, onQueued }) {
             value={manualEntries}
             onChange={(e) => setManualEntries(e.target.value)}
             placeholder={['user@example.com', 'another@example.com'].join('\n')}
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+            className="input-field font-mono text-xs"
           />
-          <p className="text-xs text-slate-500">
-            Separate recipients by new lines. Provide an email per line; names are optional.
+          <p className="text-xs text-slate-300/80">
+            Separate entries with new lines. Provide one email per line; names and notes are optional after a comma.
           </p>
         </div>
 
         <div className="space-y-2">
-          <label className="text-xs font-semibold uppercase tracking-wide text-slate-500" htmlFor="subject-template">
+          <label className="input-label" htmlFor="subject-template">
             Email subject template
           </label>
           <input
@@ -131,52 +134,48 @@ function BulkEmailUploader({ eventId, onQueued }) {
             type="text"
             value={subjectTemplate}
             onChange={(e) => setSubjectTemplate(e.target.value)}
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+            className="input-field"
           />
-          <p className="text-xs text-slate-500">
-            Use placeholders like <code>{'{{event}}'}</code>, <code>{'{{seat}}'}</code>, <code>{'{{ticket_code}}'}</code>.
+          <p className="text-xs text-slate-300/80">
+            Use tokens like <code>{'{{event}}'}</code>, <code>{'{{seat}}'}</code>, <code>{'{{ticket_code}}'}</code>.
           </p>
         </div>
 
         <div className="space-y-2">
-          <label className="text-xs font-semibold uppercase tracking-wide text-slate-500" htmlFor="body-template">
-            Email body template (HTML allowed)
+          <label className="input-label" htmlFor="body-template">
+            Email body template (HTML supported)
           </label>
           <textarea
             id="body-template"
             rows="8"
             value={bodyTemplate}
             onChange={(e) => setBodyTemplate(e.target.value)}
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20 font-mono text-xs"
+            className="input-field font-mono text-xs"
           />
-          <div className="text-xs text-slate-500 space-y-1">
+          <div className="space-y-1 text-xs text-slate-300/80">
             <p>
               Available placeholders: <code>{'{{name}}'}</code>, <code>{'{{email}}'}</code>, <code>{'{{event}}'}</code>, <code>{'{{seat}}'}</code>, <code>{'{{ticket_code}}'}</code>, <code>{'{{qr_cid}}'}</code>, <code>{'{{qr_data_url}}'}</code>, <code>{'{{event_starts}}'}</code>.
             </p>
             <p>
-              For the inline QR image, use <code>{'<img src="cid:{{qr_cid}}" alt="QR code" />'}</code>.
+              To embed the QR inline, use <code>{'<img src="cid:{{qr_cid}}" alt="QR code" />'}</code>.
             </p>
           </div>
         </div>
 
-        <div className="flex items-center justify-between text-xs text-slate-500">
+        <div className="flex items-center justify-between text-xs text-slate-300/80">
           <span>Manual recipients: {manualRecipients.length}</span>
           <span>{fileInputRef.current?.files?.length ? 'CSV attached' : 'No CSV file'}</span>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <button
-            type="submit"
-            disabled={isUploading}
-            className="inline-flex items-center justify-center gap-2 rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-dark disabled:opacity-60"
-          >
-            {isUploading ? 'Queueing…' : 'Queue Emails'}
+          <button type="submit" disabled={isUploading} className="primary-button disabled:opacity-60">
+            {isUploading ? 'Queueing…' : 'Queue emails'}
           </button>
           <button
             type="button"
             onClick={handleSendNow}
             disabled={isSending}
-            className="inline-flex items-center justify-center gap-2 rounded-md border border-brand px-4 py-2 text-sm font-semibold text-brand transition hover:bg-brand/10 disabled:opacity-60"
+            className="secondary-button disabled:opacity-60"
           >
             {isSending ? 'Sending…' : 'Send queued now'}
           </button>
@@ -184,15 +183,14 @@ function BulkEmailUploader({ eventId, onQueued }) {
       </form>
 
       {lastReport && (
-        <div className="mt-4 space-y-2 text-xs text-slate-500">
+        <div className="space-y-3 text-xs text-slate-200/85">
           {lastReport.type === 'queue' && (
             <>
               <p>
-                Last queued {lastReport.queued} recipient{lastReport.queued === 1 ? '' : 's'} at{' '}
-                {lastReport.at.toLocaleTimeString()}.
+                Last queued {lastReport.queued} recipient{lastReport.queued === 1 ? '' : 's'} at {lastReport.at.toLocaleTimeString()}.
               </p>
               {lastReport.details?.length ? (
-                <ul className="max-h-40 overflow-y-auto rounded-md border border-slate-200 bg-slate-50 p-2 font-mono text-[11px]">
+                <ul className="max-h-40 overflow-y-auto rounded-2xl border border-white/10 bg-white/5 p-3 font-mono text-[11px]">
                   {lastReport.details.map((item) => (
                     <li key={`${item.email}-${item.ticketCode}`}>
                       {item.email} → {item.seat} ({item.ticketCode})
@@ -204,11 +202,11 @@ function BulkEmailUploader({ eventId, onQueued }) {
           )}
 
           {lastReport.type === 'send' && lastReport.result && (
-            <div className="rounded-md border border-slate-200 bg-slate-50 p-2">
-              <p>
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+              <p className="font-semibold text-slate-100">
                 Last send run at {lastReport.at.toLocaleTimeString()}:
               </p>
-              <ul className="ml-4 list-disc">
+              <ul className="ml-4 list-disc space-y-1 text-slate-300/85">
                 <li>Sent: {lastReport.result.sent}</li>
                 <li>Failed: {lastReport.result.failed}</li>
                 <li>Processed from queue: {lastReport.result.pending}</li>
@@ -230,7 +228,7 @@ function parseLines(source) {
 
   const recipients = [];
   for (const line of lines) {
-  const [emailRaw, nameRaw = '', ticketRaw = ''] = line.split(',');
+    const [emailRaw, nameRaw = '', ticketRaw = ''] = line.split(',');
     const email = emailRaw?.trim();
     if (!email) continue;
     recipients.push({

@@ -9,7 +9,65 @@ body,
 }
 
 body {
-  @apply bg-slate-100 text-slate-900;
+  @apply text-slate-100 antialiased;
+  background: radial-gradient(
+      circle at 15% 20%,
+      rgba(236, 72, 153, 0.18),
+      transparent 55%
+    ),
+    radial-gradient(circle at 80% 0%, rgba(14, 165, 233, 0.18), transparent 50%),
+    radial-gradient(
+      circle at 50% 80%,
+      rgba(249, 115, 22, 0.15),
+      transparent 60%
+    ),
+    linear-gradient(135deg, #020617 0%, #0f172a 45%, #1e1b4b 100%);
+}
+
+@layer components {
+  .glass-panel {
+    @apply rounded-3xl border border-white/10 bg-slate-900/60 shadow-2xl shadow-sky-950/30 backdrop-blur-xl;
+  }
+
+  .glass-card {
+    @apply rounded-2xl border border-white/10 bg-slate-900/50 shadow-xl shadow-slate-950/40 backdrop-blur-xl;
+  }
+
+  .glass-section-label {
+    @apply text-xs font-semibold uppercase tracking-[0.4em] text-slate-300/70;
+  }
+
+  .primary-button {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 via-sky-500 to-indigo-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-sky-900/40 transition hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/60;
+  }
+
+  .secondary-button {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/5 px-5 py-2.5 text-sm font-semibold text-slate-100 transition hover:border-white/40 hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40;
+  }
+
+  .muted-button {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30;
+  }
+
+  .input-field {
+    @apply w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-400 shadow-inner shadow-slate-950/40 focus:border-sky-400/60 focus:outline-none focus:ring-2 focus:ring-sky-400/30;
+  }
+
+  .input-label {
+    @apply text-xs font-semibold uppercase tracking-[0.35em] text-slate-300/80;
+  }
+
+  .page-heading {
+    @apply text-2xl font-semibold tracking-tight text-white drop-shadow-[0_6px_18px_rgba(59,130,246,0.25)];
+  }
+
+  .page-subheading {
+    @apply mt-1 max-w-2xl text-sm text-slate-300;
+  }
+
+  .frosted-card {
+    @apply glass-card p-6;
+  }
 }
 
 .scrollbar-thin::-webkit-scrollbar {

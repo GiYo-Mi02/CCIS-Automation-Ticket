@@ -195,35 +195,31 @@ function EventsPage() {
   }, []);
 
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-6">
-      <section className="rounded-3xl bg-white px-6 py-6 shadow-sm">
-        <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+    <div className="mx-auto flex max-w-7xl flex-col gap-8">
+      <section className="glass-panel px-6 py-6">
+        <div className="flex flex-col justify-between gap-6 md:flex-row md:items-center">
           <div>
-            <h2 className="text-2xl font-semibold text-slate-900">Manage Events</h2>
-            <p className="mt-1 max-w-xl text-sm text-slate-500">
+            <h2 className="page-heading">Manage Events</h2>
+            <p className="page-subheading max-w-2xl">
               Publish new events, update schedules, and manage promotional posters. Changes sync instantly with the
               admin dashboard and scanners.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={resetForm}
-            className="inline-flex items-center gap-2 rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-700"
-          >
+          <button type="button" onClick={resetForm} className="primary-button">
             <PlusIcon className="h-4 w-4" />
             New event
           </button>
         </div>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[2fr_1.2fr]">
+      <section className="grid gap-6 lg:grid-cols-[1.7fr_1.1fr]">
         <div className="space-y-4">
           {loading ? (
-            <div className="flex h-40 items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white text-sm text-slate-500">
+            <div className="glass-card flex h-40 items-center justify-center text-sm text-slate-200/80">
               Loading events…
             </div>
           ) : sortedEvents.length === 0 ? (
-            <div className="flex h-40 items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white text-sm text-slate-500">
+            <div className="glass-card flex h-40 items-center justify-center text-sm text-slate-200/80">
               No events yet. Create your first event using the form.
             </div>
           ) : (
@@ -241,25 +237,25 @@ function EventsPage() {
           )}
         </div>
 
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="glass-panel space-y-5 px-6 py-6">
           <div className="flex items-center justify-between">
-            <h3 className="text-base font-semibold text-slate-800">
+            <h3 className="text-lg font-semibold tracking-tight text-white">
               {isEditing ? 'Update event' : 'Create new event'}
             </h3>
             {isEditing && (
               <button
                 type="button"
                 onClick={resetForm}
-                className="text-xs font-semibold text-brand hover:underline"
+                className="text-xs font-semibold text-sky-300 hover:underline"
               >
                 Cancel edit
               </button>
             )}
           </div>
 
-          <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-1">
-              <label className="text-sm font-medium text-slate-600" htmlFor="event-name">
+              <label className="input-label" htmlFor="event-name">
                 Event name
               </label>
               <input
@@ -267,7 +263,7 @@ function EventsPage() {
                 type="text"
                 value={formState.name}
                 onChange={(e) => setFormState((prev) => ({ ...prev, name: e.target.value }))}
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                className="input-field"
                 placeholder="e.g. CCIS Recognition Night"
                 required
               />
@@ -275,7 +271,7 @@ function EventsPage() {
 
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-1">
-                <label className="text-sm font-medium text-slate-600" htmlFor="event-start">
+                <label className="input-label" htmlFor="event-start">
                   Starts
                 </label>
                 <input
@@ -283,12 +279,12 @@ function EventsPage() {
                   type="datetime-local"
                   value={formState.starts_at}
                   onChange={(e) => setFormState((prev) => ({ ...prev, starts_at: e.target.value }))}
-                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                  className="input-field"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-sm font-medium text-slate-600" htmlFor="event-end">
+                <label className="input-label" htmlFor="event-end">
                   Ends
                 </label>
                 <input
@@ -296,13 +292,13 @@ function EventsPage() {
                   type="datetime-local"
                   value={formState.ends_at}
                   onChange={(e) => setFormState((prev) => ({ ...prev, ends_at: e.target.value }))}
-                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                  className="input-field"
                 />
               </div>
             </div>
 
             <div className="space-y-1">
-              <label className="text-sm font-medium text-slate-600" htmlFor="event-capacity">
+              <label className="input-label" htmlFor="event-capacity">
                 Capacity
               </label>
               <input
@@ -311,13 +307,13 @@ function EventsPage() {
                 min="0"
                 value={formState.capacity}
                 onChange={(e) => setFormState((prev) => ({ ...prev, capacity: e.target.value }))}
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                className="input-field"
                 placeholder="1196"
               />
             </div>
 
             <div className="space-y-1">
-              <label className="text-sm font-medium text-slate-600" htmlFor="event-description">
+              <label className="input-label" htmlFor="event-description">
                 Description
               </label>
               <textarea
@@ -325,35 +321,35 @@ function EventsPage() {
                 rows="3"
                 value={formState.description}
                 onChange={(e) => setFormState((prev) => ({ ...prev, description: e.target.value }))}
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+                className="input-field"
                 placeholder="Highlight key details attendees should know."
               />
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-600">Poster</label>
+              <span className="input-label">Poster</span>
               <div className="flex items-start gap-4">
-                <div className="flex h-32 w-24 items-center justify-center overflow-hidden rounded-lg border border-dashed border-slate-300 bg-slate-50">
+                <div className="flex h-32 w-24 items-center justify-center overflow-hidden rounded-xl border border-dashed border-white/30 bg-white/5">
                   {formState.posterPreview ? (
                     <img src={formState.posterPreview} alt="Event poster" className="h-full w-full object-cover" />
                   ) : (
-                    <PhotoIcon className="h-10 w-10 text-slate-300" />
+                    <PhotoIcon className="h-10 w-10 text-slate-400" />
                   )}
                 </div>
-                <div className="flex-1 space-y-3 text-sm text-slate-600">
+                <div className="flex-1 space-y-3 text-sm text-slate-200/90">
                   <input
                     ref={fileInputRef}
                     type="file"
                     accept="image/*"
                     onChange={handlePosterChange}
-                    className="block w-full text-sm text-slate-600 file:mr-4 file:rounded-md file:border-0 file:bg-brand file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-brand-dark"
+                    className="block w-full text-sm text-slate-200 file:mr-4 file:rounded-xl file:border-0 file:bg-gradient-to-r file:from-sky-500 file:via-indigo-500 file:to-purple-500 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:brightness-110"
                   />
-                  <p className="text-xs text-slate-500">Maximum size 5MB. JPG or PNG recommended.</p>
+                  <p className="text-xs text-slate-400">Maximum size 5MB. JPG or PNG recommended.</p>
                   {(formState.posterPreview || formState.posterUrl) && (
                     <button
                       type="button"
                       onClick={handleRemovePoster}
-                      className="text-xs font-semibold text-rose-500 hover:underline"
+                      className="text-xs font-semibold text-rose-300 hover:underline"
                     >
                       Remove poster
                     </button>
@@ -362,11 +358,7 @@ function EventsPage() {
               </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={saving}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-brand px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-dark disabled:opacity-60"
-            >
+            <button type="submit" disabled={saving} className="primary-button w-full disabled:opacity-60">
               {saving ? (
                 <>
                   <ArrowPathIcon className="h-4 w-4 animate-spin" />
@@ -393,31 +385,33 @@ function EventCard({ event, onEdit, onExport, isActive }) {
 
   return (
     <div
-      className={`relative h-full rounded-xl border ${
-        isActive ? 'border-brand ring-2 ring-brand/40' : 'border-slate-200'
-      } bg-white p-5 shadow-sm transition hover:shadow-md`}
+      className={`glass-card relative h-full p-5 transition duration-200 hover:scale-[1.01] hover:border-white/20 ${
+        isActive ? 'ring-2 ring-sky-400/50' : ''
+      }`}
     >
       <div className="flex gap-4">
-        <div className="h-32 w-24 overflow-hidden rounded-lg bg-slate-100">
+        <div className="h-32 w-24 overflow-hidden rounded-xl border border-white/10 bg-white/5">
           {posterSrc ? (
             <img src={posterSrc} alt={`${event.name} poster`} className="h-full w-full object-cover" />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-slate-200 text-xs uppercase tracking-wide text-slate-500">
-              No poster
+            <div className="flex h-full w-full items-center justify-center bg-white/5 text-[0.65rem] uppercase tracking-[0.4em] text-slate-300">
+              Poster
             </div>
           )}
         </div>
         <div className="flex-1 space-y-2">
           <div>
-            <h4 className="text-base font-semibold text-slate-900">{event.name}</h4>
-            <p className="text-xs text-slate-500">Capacity: {event.capacity ?? '—'}</p>
+            <h4 className="text-lg font-semibold text-white">{event.name}</h4>
+            <p className="text-xs uppercase tracking-[0.35em] text-slate-300/80">
+              Capacity · {event.capacity ?? '—'}
+            </p>
           </div>
-          <div className="space-y-1 text-xs text-slate-600">
-            {starts && <p>Starts: {starts}</p>}
-            {ends && <p>Ends: {ends}</p>}
+          <div className="space-y-1 text-xs text-slate-300/90">
+            {starts && <p className="flex items-center gap-2"><span className="h-1 w-1 rounded-full bg-sky-400" />Starts: {starts}</p>}
+            {ends && <p className="flex items-center gap-2"><span className="h-1 w-1 rounded-full bg-purple-400" />Ends: {ends}</p>}
           </div>
           {event.description && (
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-slate-200/90">
               {event.description.length > 160
                 ? `${event.description.slice(0, 157)}...`
                 : event.description}
@@ -425,7 +419,7 @@ function EventCard({ event, onEdit, onExport, isActive }) {
           )}
         </div>
       </div>
-      <div className="mt-4 flex flex-col gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mt-4 flex flex-col gap-2 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           <ExportButton label="CSV" onClick={() => onExport(event.id, 'csv')} />
           <ExportButton label="Excel" onClick={() => onExport(event.id, 'xlsx')} />
@@ -434,7 +428,7 @@ function EventCard({ event, onEdit, onExport, isActive }) {
         <button
           type="button"
           onClick={() => onEdit(event)}
-          className="inline-flex items-center gap-2 rounded-md border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-brand hover:text-brand"
+          className="secondary-button h-10 px-4 py-2 text-xs uppercase tracking-[0.2em]"
         >
           <PencilSquareIcon className="h-4 w-4" />
           Edit
@@ -449,7 +443,7 @@ function ExportButton({ label, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-brand hover:text-brand"
+      className="muted-button h-10 px-4 py-2 text-xs uppercase tracking-[0.2em]"
     >
       <ArrowDownTrayIcon className="h-4 w-4" />
       {label}

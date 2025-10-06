@@ -375,12 +375,13 @@ function ScannerPage() {
   }, []);
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-6">
-      <section className="rounded-3xl bg-white px-6 py-6 shadow-sm">
-        <h2 className="text-2xl font-semibold text-slate-900">Dual QR Scanners</h2>
-        <p className="mt-1 text-sm text-slate-500">
-          Connect up to two cameras for parallel ticket validation. Each scanner runs independently—select a camera
-          source for both stations to streamline entry flow.
+    <div className="mx-auto flex max-w-6xl flex-col gap-8">
+      <section className="glass-panel px-8 py-8">
+        <p className="glass-section-label">Live validation</p>
+        <h2 className="page-heading">Dual QR scanners</h2>
+        <p className="page-subheading">
+          Connect up to two cameras for parallel ticket checks. Each station runs independently so you can assign
+          separate entry lanes and keep the queue moving.
         </p>
       </section>
 
@@ -390,28 +391,36 @@ function ScannerPage() {
           const selectedId = selectedCameraIds[index] ?? '';
 
           return (
-            <div key={config.key} className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-slate-900">{config.label}</h3>
-                <span className={`text-xs font-semibold ${state.isVerifying ? 'text-brand' : 'text-slate-400'}`}>
-                  {state.isVerifying ? 'Processing scan…' : 'Idle'}
+            <div key={config.key} className="glass-card flex flex-col gap-5 p-6">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="glass-section-label">{config.label}</p>
+                  <h3 className="text-lg font-semibold text-white">Scanner station</h3>
+                </div>
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em] ${
+                    state.isVerifying
+                      ? 'bg-emerald-500/20 text-emerald-200'
+                      : 'bg-white/5 text-slate-300'
+                  }`}
+                >
+                  {state.isVerifying ? 'Processing' : 'Idle'}
                 </span>
               </div>
 
-              <div className="mt-4 flex flex-wrap items-center gap-3">
-                <label
-                  className="text-sm font-medium text-slate-700"
-                  htmlFor={`camera-select-${config.key}`}
-                >
-                  Camera source
-                </label>
-                <select
-                  id={`camera-select-${config.key}`}
-                  value={selectedId}
-                  onChange={(event) => handleCameraChange(index, event.target.value || null)}
-                  disabled={isCameraLoading || state.isStarting || availableCameras.length === 0}
-                  className="rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
-                >
+              <div className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <label className="input-label" htmlFor={`camera-select-${config.key}`}>
+                    Camera source
+                  </label>
+                  <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
+                    <select
+                      id={`camera-select-${config.key}`}
+                      value={selectedId}
+                      onChange={(event) => handleCameraChange(index, event.target.value || null)}
+                      disabled={isCameraLoading || state.isStarting || availableCameras.length === 0}
+                      className="input-field"
+                    >
                   {availableCameras.length === 0 ? (
                     <option value="">{isCameraLoading ? 'Detecting cameras…' : 'No cameras found'}</option>
                   ) : (
@@ -424,30 +433,33 @@ function ScannerPage() {
                       ))}
                     </>
                   )}
-                </select>
-                <button
-                  type="button"
-                  onClick={refreshCameraList}
-                  disabled={isCameraLoading}
-                  className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {isCameraLoading ? 'Refreshing…' : 'Refresh cameras'}
-                </button>
+                    </select>
+                    <button
+                      type="button"
+                      onClick={refreshCameraList}
+                      disabled={isCameraLoading}
+                      className="muted-button whitespace-nowrap text-xs uppercase tracking-[0.3em] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isCameraLoading ? 'Refreshing…' : 'Refresh cameras'}
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
-                <div id={config.regionId} className="mx-auto aspect-square max-w-sm rounded-lg bg-black/5"></div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <div id={config.regionId} className="mx-auto aspect-square max-w-sm overflow-hidden rounded-2xl bg-black/40"></div>
               </div>
 
-              <p className="mt-3 text-center text-sm font-medium text-slate-600">
+              <p className="text-center text-sm font-medium text-slate-200">
                 {state.isStarting ? 'Starting camera…' : state.statusMsg}
               </p>
 
               {state.error && (
-                <div className="mt-3 space-y-2 rounded-lg border border-rose-200 bg-rose-50 p-3 text-center text-sm text-rose-700">
-                  <p>{state.error}</p>
+                <div className="space-y-2 rounded-2xl border border-rose-500/40 bg-rose-500/15 p-4 text-center text-sm text-rose-100">
+                  <p className="font-semibold uppercase tracking-[0.25em]">Camera issue</p>
+                  <p className="text-rose-100/90">{state.error}</p>
                   {state.errorDetail && (
-                    <p className="text-xs text-rose-600/80">Details: {state.errorDetail}</p>
+                    <p className="text-xs text-rose-200/80">Details: {state.errorDetail}</p>
                   )}
                   <div className="flex flex-wrap items-center justify-center gap-2 text-xs font-semibold">
                     <button
@@ -461,7 +473,7 @@ function ScannerPage() {
                         }
                       }}
                       disabled={state.isStarting}
-                      className="rounded-md border border-rose-300 px-3 py-1 text-rose-600 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="muted-button border-rose-500/50 text-rose-200 hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       Retry camera
                     </button>
@@ -469,7 +481,7 @@ function ScannerPage() {
                       type="button"
                       onClick={refreshCameraList}
                       disabled={isCameraLoading}
-                      className="rounded-md border border-slate-300 px-3 py-1 text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="muted-button text-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       Refresh list
                     </button>
@@ -477,13 +489,17 @@ function ScannerPage() {
                 </div>
               )}
 
-              <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
-                <h4 className="text-sm font-semibold text-slate-800">Last scan</h4>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <h4 className="text-sm font-semibold uppercase tracking-[0.3em] text-slate-300">Last scan</h4>
                 {state.lastResult ? (
-                  <div className="mt-2 space-y-2 text-sm text-slate-600">
+                  <div className="mt-2 space-y-2 text-sm text-slate-200/90">
                     <p>
                       Result:{' '}
-                      <span className={`font-semibold ${state.lastResult.ok ? 'text-emerald-600' : 'text-rose-600'}`}>
+                      <span
+                        className={`font-semibold ${
+                          state.lastResult.ok ? 'text-emerald-300' : 'text-rose-300'
+                        }`}
+                      >
                         {state.lastResult.ok ? 'ACCEPTED' : 'REJECTED'}
                       </span>
                     </p>
@@ -507,7 +523,7 @@ function ScannerPage() {
                     )}
                   </div>
                 ) : (
-                  <p className="mt-2 text-sm text-slate-500">No scans yet.</p>
+                  <p className="mt-2 text-sm text-slate-400/80">No scans yet.</p>
                 )}
               </div>
             </div>
@@ -515,12 +531,12 @@ function ScannerPage() {
         })}
       </section>
 
-      <section className="rounded-xl border border-amber-200 bg-amber-50/70 p-5 text-sm text-amber-700">
-        <h4 className="text-base font-semibold">Operational tips</h4>
-        <ul className="mt-2 list-disc space-y-1 pl-5">
+      <section className="glass-card p-6 text-sm text-slate-200/85">
+        <h4 className="text-base font-semibold text-white">Operational tips</h4>
+        <ul className="mt-3 list-disc space-y-2 pl-6">
           <li>Grant camera permissions in your browser for both devices. Use HTTPS (or localhost) to avoid permission issues.</li>
           <li>Assign different external cameras to each scanner for two simultaneous entry lanes.</li>
-          <li>If a camera stops responding, use the Refresh button or reconnect the device—each scanner can be restarted independently.</li>
+          <li>If a camera stops responding, refresh the list or reconnect the device—each scanner can be restarted independently.</li>
         </ul>
       </section>
     </div>
