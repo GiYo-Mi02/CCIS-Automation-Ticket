@@ -58,4 +58,4 @@ async function apiFetch(path, options = {}) {
   }
 }
 
-export { apiFetch };
+export { apiFetch, API_BASE };

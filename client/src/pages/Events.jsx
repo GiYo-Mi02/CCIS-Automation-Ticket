@@ -7,6 +7,8 @@ import {
   PencilSquareIcon,
 } from '@heroicons/react/24/outline';
 import { apiFetch } from '../api/client.js';
+import StatCard from '../components/StatCard.jsx';
+import { useAnalytics } from '../contexts/AnalyticsContext.jsx';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000';
 
@@ -30,6 +32,18 @@ function EventsPage() {
   const [formState, setFormState] = useState(initialFormState);
   const fileInputRef = useRef(null);
   const localPreviewRef = useRef(null);
+  const { snapshot } = useAnalytics();
+
+  const analyticsEvents = snapshot?.events ?? [];
+  const analyticsById = useMemo(() => {
+    const map = {};
+    analyticsEvents.forEach((event) => {
+      map[event.id] = event;
+    });
+    return map;
+  }, [analyticsEvents]);
+
+  const globalTotals = snapshot?.totals ?? null;
 
   const loadEvents = useCallback(async () => {
     setLoading(true);
@@ -198,18 +212,49 @@ function EventsPage() {
     <div className="mx-auto flex max-w-7xl flex-col gap-8">
       <section className="glass-panel px-6 py-6">
         <div className="flex flex-col justify-between gap-6 md:flex-row md:items-center">
-          <div>
-            <h2 className="page-heading">Manage Events</h2>
+          <div className="space-y-2">
+            <p className="glass-section-label">Event portfolio</p>
+            <h2 className="page-heading">Manage events</h2>
             <p className="page-subheading max-w-2xl">
-              Publish new events, update schedules, and manage promotional posters. Changes sync instantly with the
-              admin dashboard and scanners.
+              Publish new events, update schedules, and oversee collateral with live occupancy and attendance data to guide your campaigns.
             </p>
           </div>
-          <button type="button" onClick={resetForm} className="primary-button">
-            <PlusIcon className="h-4 w-4" />
-            New event
-          </button>
+          <div className="flex flex-col items-start gap-3 md:flex-row md:items-center">
+            <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.35em] text-slate-200/80">
+              Live events · {analyticsEvents.length}
+            </span>
+            <button type="button" onClick={resetForm} className="primary-button">
+              <PlusIcon className="h-4 w-4" />
+              New event
+            </button>
+          </div>
         </div>
+      </section>
+
+      <section className="grid gap-5 md:grid-cols-4">
+        <StatCard
+          label="Events online"
+          value={analyticsEvents.length}
+          accent="bg-gradient-to-r from-sky-500 via-indigo-500 to-purple-500"
+        />
+        <StatCard
+          label="Tickets sold"
+          value={(globalTotals?.tickets?.total ?? 0) - (globalTotals?.tickets?.cancelled ?? 0)}
+          accent="bg-gradient-to-r from-purple-500 via-violet-500 to-fuchsia-500"
+        />
+        <StatCard
+          label="Check-ins (hour)"
+          value={globalTotals?.checkIns?.lastHour ?? 0}
+          accent="bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400"
+        />
+        <StatCard
+          label="Revenue"
+          value={`₱${(globalTotals?.revenue ?? 0).toLocaleString(undefined, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })}`}
+          accent="bg-gradient-to-r from-amber-400 via-orange-500 to-rose-500"
+        />
       </section>
 
       <section className="grid gap-6 lg:grid-cols-[1.7fr_1.1fr]">
@@ -223,11 +268,12 @@ function EventsPage() {
               No events yet. Create your first event using the form.
             </div>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-1">
               {sortedEvents.map((event) => (
                 <EventCard
                   key={event.id}
                   event={event}
+                  analytics={analyticsById[event.id]}
                   onEdit={populateForm}
                   onExport={handleExport}
                   isActive={formState.id === event.id}
@@ -378,48 +424,96 @@ function EventsPage() {
   );
 }
 
-function EventCard({ event, onEdit, onExport, isActive }) {
+function EventCard({ event, onEdit, onExport, isActive, analytics }) {
   const starts = formatDateTime(event.starts_at || event.performance_at);
   const ends = formatDateTime(event.ends_at);
   const posterSrc = resolvePosterUrl(event.poster_url);
+  const seats = analytics?.seats ?? { available: null, reserved: null, sold: null };
+  const tickets = analytics?.tickets ?? { active: null, used: null, cancelled: null, revenue: null };
+  const checkIns = analytics?.checkIns ?? { lastFiveMinutes: null, lastHour: null };
+  const occupancyPercent = analytics?.occupancy != null ? Math.round(analytics.occupancy * 100) : null;
+  const occupancyWidth = occupancyPercent != null ? `${Math.max(0, Math.min(occupancyPercent, 100))}%` : '0%';
+  const occupancyLabel = occupancyPercent != null ? `${occupancyPercent}% full` : 'No live occupancy data';
 
   return (
     <div
-      className={`glass-card relative h-full p-5 transition duration-200 hover:scale-[1.01] hover:border-white/20 ${
-        isActive ? 'ring-2 ring-sky-400/50' : ''
+      className={`glass-card relative flex h-full flex-col gap-6 p-6 transition duration-200 hover:border-white/20 hover:shadow-xl ${
+        isActive ? 'ring-2 ring-sky-400/40' : ''
       }`}
     >
-      <div className="flex gap-4">
-        <div className="h-32 w-24 overflow-hidden rounded-xl border border-white/10 bg-white/5">
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
+        <div className="w-full shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-white/5 sm:w-36">
           {posterSrc ? (
             <img src={posterSrc} alt={`${event.name} poster`} className="h-full w-full object-cover" />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-white/5 text-[0.65rem] uppercase tracking-[0.4em] text-slate-300">
+            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-500/40 to-slate-900/20 text-[0.65rem] uppercase tracking-[0.4em] text-slate-200/80">
               Poster
             </div>
           )}
         </div>
-        <div className="flex-1 space-y-2">
-          <div>
-            <h4 className="text-lg font-semibold text-white">{event.name}</h4>
+        <div className="flex-1 space-y-3">
+          <div className="space-y-1">
+            <h4 className="text-xl font-semibold tracking-tight text-white">{event.name}</h4>
             <p className="text-xs uppercase tracking-[0.35em] text-slate-300/80">
               Capacity · {event.capacity ?? '—'}
             </p>
           </div>
-          <div className="space-y-1 text-xs text-slate-300/90">
-            {starts && <p className="flex items-center gap-2"><span className="h-1 w-1 rounded-full bg-sky-400" />Starts: {starts}</p>}
-            {ends && <p className="flex items-center gap-2"><span className="h-1 w-1 rounded-full bg-purple-400" />Ends: {ends}</p>}
+          <div className="grid gap-2 text-sm text-slate-200/85 sm:grid-cols-2">
+            {starts && (
+              <EventMetaRow
+                indicator="bg-sky-400"
+                label="Starts"
+                value={starts}
+              />
+            )}
+            {ends && (
+              <EventMetaRow
+                indicator="bg-purple-400"
+                label="Ends"
+                value={ends}
+              />
+            )}
           </div>
           {event.description && (
-            <p className="text-sm text-slate-200/90">
-              {event.description.length > 160
-                ? `${event.description.slice(0, 157)}...`
+            <p className="text-sm leading-relaxed text-slate-200/90">
+              {event.description.length > 180
+                ? `${event.description.slice(0, 177)}…`
                 : event.description}
             </p>
           )}
         </div>
       </div>
-      <div className="mt-4 flex flex-col gap-2 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
+
+      <div className="space-y-4 rounded-3xl border border-white/10 bg-gradient-to-br from-white/8 via-white/5 to-white/0 p-5 backdrop-blur-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-[0.65rem] uppercase tracking-[0.3em] text-slate-200/70">Live metrics</p>
+            <h5 className="text-lg font-semibold text-white">{occupancyLabel}</h5>
+          </div>
+          <div className="w-full max-w-xs self-start sm:self-auto">
+            <div className="h-2 w-full overflow-hidden rounded-full bg-slate-600/40">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-sky-400 to-indigo-400 transition-all duration-500"
+                style={{ width: occupancyWidth }}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <EventStatPill label="Seats sold" value={formatCompact(seats.sold)} tone="from-emerald-400/20 to-emerald-500/10" />
+          <EventStatPill label="Seats reserved" value={formatCompact(seats.reserved)} tone="from-sky-400/20 to-sky-500/10" />
+          <EventStatPill label="Seats open" value={formatCompact(seats.available)} tone="from-slate-400/20 to-slate-500/10" />
+          <EventStatPill label="Tickets used" value={formatCompact(tickets.used)} tone="from-indigo-400/20 to-indigo-500/10" />
+          <EventStatPill label="Tickets active" value={formatCompact(tickets.active)} tone="from-fuchsia-400/20 to-fuchsia-500/10" />
+          <EventStatPill label="Cancelled" value={formatCompact(tickets.cancelled)} tone="from-rose-400/20 to-rose-500/10" />
+          <EventStatPill label="Check-ins (5m)" value={formatCompact(checkIns.lastFiveMinutes)} tone="from-teal-400/20 to-teal-500/10" />
+          <EventStatPill label="Check-ins (1h)" value={formatCompact(checkIns.lastHour)} tone="from-cyan-400/20 to-cyan-500/10" />
+          <EventStatPill label="Revenue" value={formatCurrency(tickets.revenue)} tone="from-amber-400/20 to-amber-500/10" />
+        </div>
+      </div>
+
+      <div className="mt-auto flex flex-col gap-3 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           <ExportButton label="CSV" onClick={() => onExport(event.id, 'csv')} />
           <ExportButton label="Excel" onClick={() => onExport(event.id, 'xlsx')} />
@@ -433,6 +527,35 @@ function EventCard({ event, onEdit, onExport, isActive }) {
           <PencilSquareIcon className="h-4 w-4" />
           Edit
         </button>
+      </div>
+    </div>
+  );
+}
+
+function EventStatPill({ label, value, tone }) {
+  return (
+    <div
+      className={`group rounded-2xl border border-white/10 bg-white/5 p-4 shadow-sm backdrop-blur-sm transition hover:-translate-y-[1px] hover:border-white/20 hover:shadow-lg ${
+        tone ? `bg-gradient-to-br ${tone}` : ''
+      }`}
+    >
+      <p className="text-[0.6rem] uppercase tracking-[0.28em] text-white/70">
+        {label}
+      </p>
+      <p className="mt-2 text-2xl font-semibold tracking-tight text-white group-hover:text-white">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function EventMetaRow({ indicator, label, value }) {
+  return (
+    <div className="flex items-start gap-3 rounded-2xl border border-white/5 bg-white/5 p-3 text-xs text-slate-200/90">
+      <span className={`mt-1 inline-flex h-2 w-2 rounded-full ${indicator}`} />
+      <div className="space-y-1">
+        <p className="uppercase tracking-[0.35em] text-[0.58rem] text-white/60">{label}</p>
+        <p className="text-sm font-medium text-white/90">{value}</p>
       </div>
     </div>
   );
@@ -472,6 +595,29 @@ function formatDateTime(value) {
     dateStyle: 'medium',
     timeStyle: 'short',
   });
+}
+
+const compactNumberFormatter = new Intl.NumberFormat(undefined, {
+  notation: 'compact',
+  maximumFractionDigits: 1,
+});
+
+function formatCompact(value) {
+  if (value === null || value === undefined) return '—';
+  const numberValue = Number(value);
+  if (!Number.isFinite(numberValue)) return '—';
+  if (numberValue === 0) return '0';
+  return compactNumberFormatter.format(numberValue);
+}
+
+function formatCurrency(value) {
+  if (value === null || value === undefined) return '—';
+  const numberValue = Number(value);
+  if (!Number.isFinite(numberValue)) return '—';
+  return `₱${numberValue.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
 }
 
 function resolvePosterUrl(posterUrl) {

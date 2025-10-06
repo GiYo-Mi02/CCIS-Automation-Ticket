@@ -10,6 +10,7 @@ const { signPayload, generateQrDataUrl } = require("../lib/qr");
 const { processPendingEmails } = require("../lib/emailWorker");
 
 const router = express.Router();
+const ANALYTICS_REFRESH_MS = Number(process.env.ANALYTICS_REFRESH_MS || 5000);
 
 const DEFAULT_EMAIL_TEMPLATE = `<!doctype html>
 <p>Hi {{name}},</p>
@@ -90,6 +91,211 @@ function formatSeat(attendee) {
     return parts.join(" ");
   }
   return "Unassigned";
+}
+
+async function buildAnalyticsSnapshot() {
+  const now = new Date();
+
+  const [events] = await pool.query(
+    `SELECT id, name, description, poster_url, starts_at, ends_at, capacity, created_at
+       FROM events
+      ORDER BY starts_at IS NULL, starts_at ASC, created_at DESC`
+  );
+
+  const [seatRows] = await pool.query(
+    `SELECT event_id, status, COUNT(*) AS count
+       FROM seats
+      GROUP BY event_id, status`
+  );
+
+  const [ticketRows] = await pool.query(
+    `SELECT event_id, status, COUNT(*) AS count, COALESCE(SUM(price), 0) AS revenue
+       FROM tickets
+      GROUP BY event_id, status`
+  );
+
+  const [checkinBuckets] = await pool.query(
+    `SELECT event_id,
+            DATE_FORMAT(used_at, '%Y-%m-%d %H:%i:00') AS bucket,
+            COUNT(*) AS count
+       FROM tickets
+      WHERE status = 'used'
+        AND used_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR)
+      GROUP BY event_id, bucket
+      ORDER BY bucket ASC`
+  );
+
+  const [checkinsLastFive] = await pool.query(
+    `SELECT event_id, COUNT(*) AS count
+       FROM tickets
+      WHERE status = 'used'
+        AND used_at >= DATE_SUB(NOW(), INTERVAL 5 MINUTE)
+      GROUP BY event_id`
+  );
+
+  const [emailQueueRows] = await pool.query(
+    `SELECT status, COUNT(*) AS count
+       FROM email_queue
+      GROUP BY status`
+  );
+
+  const seatByEvent = seatRows.reduce((acc, row) => {
+    const eventId = row.event_id;
+    if (!acc[eventId]) {
+      acc[eventId] = { available: 0, reserved: 0, sold: 0, blocked: 0 };
+    }
+    const statusKey =
+      row.status && acc[eventId][row.status] !== undefined
+        ? row.status
+        : "available";
+    acc[eventId][statusKey] = Number(row.count) || 0;
+    return acc;
+  }, {});
+
+  const ticketByEvent = ticketRows.reduce((acc, row) => {
+    const eventId = row.event_id;
+    if (!acc[eventId]) {
+      acc[eventId] = {
+        total: 0,
+        active: 0,
+        used: 0,
+        cancelled: 0,
+        revenue: 0,
+      };
+    }
+    const statusKey = row.status;
+    const count = Number(row.count) || 0;
+    acc[eventId].total += count;
+    if (statusKey && acc[eventId][statusKey] !== undefined) {
+      acc[eventId][statusKey] += count;
+    }
+    acc[eventId].revenue += Number(row.revenue) || 0;
+    return acc;
+  }, {});
+
+  const checkinsHistoryByEvent = checkinBuckets.reduce((acc, row) => {
+    const eventId = row.event_id;
+    if (!acc[eventId]) {
+      acc[eventId] = [];
+    }
+    const isoBucket = row.bucket
+      ? `${row.bucket.replace(" ", "T")}.000Z`
+      : null;
+    acc[eventId].push({
+      bucket: isoBucket,
+      count: Number(row.count) || 0,
+    });
+    return acc;
+  }, {});
+
+  const checkinsLastFiveByEvent = checkinsLastFive.reduce((acc, row) => {
+    acc[row.event_id] = Number(row.count) || 0;
+    return acc;
+  }, {});
+
+  const queueSummary = emailQueueRows.reduce(
+    (acc, row) => {
+      const statusKey = row.status || "pending";
+      acc[statusKey] = Number(row.count) || 0;
+      return acc;
+    },
+    { pending: 0, sending: 0, sent: 0, failed: 0 }
+  );
+
+  let totalCapacity = 0;
+  let totalSeatsAvailable = 0;
+  let totalSeatsReserved = 0;
+  let totalSeatsSold = 0;
+  let totalSeatsBlocked = 0;
+  let totalTicketsActive = 0;
+  let totalTicketsUsed = 0;
+  let totalTicketsCancelled = 0;
+  let totalRevenue = 0;
+  let totalCheckinsLastHour = 0;
+  let totalCheckinsLastFive = 0;
+
+  const eventsSummary = events.map((event) => {
+    const seatCounts = {
+      available: seatByEvent[event.id]?.available || 0,
+      reserved: seatByEvent[event.id]?.reserved || 0,
+      sold: seatByEvent[event.id]?.sold || 0,
+      blocked: seatByEvent[event.id]?.blocked || 0,
+    };
+
+    const ticketCounts = {
+      total: ticketByEvent[event.id]?.total || 0,
+      active: ticketByEvent[event.id]?.active || 0,
+      used: ticketByEvent[event.id]?.used || 0,
+      cancelled: ticketByEvent[event.id]?.cancelled || 0,
+      revenue: ticketByEvent[event.id]?.revenue || 0,
+    };
+
+    const history = checkinsHistoryByEvent[event.id] || [];
+    const checkinsLastHour = history.reduce((sum, item) => sum + item.count, 0);
+    const checkinsLastFive = checkinsLastFiveByEvent[event.id] || 0;
+
+    totalCapacity += event.capacity || 0;
+    totalSeatsAvailable += seatCounts.available;
+    totalSeatsReserved += seatCounts.reserved;
+    totalSeatsSold += seatCounts.sold;
+    totalSeatsBlocked += seatCounts.blocked;
+    totalTicketsActive += ticketCounts.active;
+    totalTicketsUsed += ticketCounts.used;
+    totalTicketsCancelled += ticketCounts.cancelled;
+    totalRevenue += ticketCounts.revenue;
+    totalCheckinsLastHour += checkinsLastHour;
+    totalCheckinsLastFive += checkinsLastFive;
+
+    const engaged = ticketCounts.active + ticketCounts.used;
+    const occupancy = event.capacity
+      ? Math.min(1, engaged / event.capacity)
+      : null;
+
+    return {
+      id: event.id,
+      name: event.name,
+      description: event.description,
+      posterUrl: event.poster_url,
+      startsAt: event.starts_at,
+      endsAt: event.ends_at,
+      capacity: event.capacity,
+      seats: seatCounts,
+      tickets: ticketCounts,
+      occupancy,
+      checkIns: {
+        lastFiveMinutes: checkinsLastFive,
+        lastHour: checkinsLastHour,
+        history,
+      },
+    };
+  });
+
+  return {
+    generatedAt: now.toISOString(),
+    totals: {
+      events: events.length,
+      capacity: totalCapacity,
+      seats: {
+        available: totalSeatsAvailable,
+        reserved: totalSeatsReserved,
+        sold: totalSeatsSold,
+        blocked: totalSeatsBlocked,
+      },
+      tickets: {
+        active: totalTicketsActive,
+        used: totalTicketsUsed,
+        cancelled: totalTicketsCancelled,
+        total: totalTicketsActive + totalTicketsUsed + totalTicketsCancelled,
+      },
+      revenue: totalRevenue,
+      checkIns: {
+        lastHour: totalCheckinsLastHour,
+        lastFiveMinutes: totalCheckinsLastFive,
+      },
+    },
+    queue: queueSummary,
+    events: eventsSummary,
+  };
 }
 
 async function fetchEventWithAttendees(eventId) {
@@ -339,6 +545,56 @@ async function updateEvent(req, res, next) {
 router.get("/events", listEvents);
 router.post("/events", upload.single("poster"), createEvent);
 router.put("/events/:id", upload.single("poster"), updateEvent);
+
+router.get("/analytics/overview", async (_req, res, next) => {
+  try {
+    const snapshot = await buildAnalyticsSnapshot();
+    res.json(snapshot);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get("/analytics/stream", async (req, res, next) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache, no-transform");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders && res.flushHeaders();
+
+  let closed = false;
+
+  const sendSnapshot = async () => {
+    if (closed) return;
+    try {
+      const snapshot = await buildAnalyticsSnapshot();
+      res.write(`data: ${JSON.stringify(snapshot)}\n\n`);
+    } catch (err) {
+      console.error("analytics stream error", err);
+      res.write(`event: error\n`);
+      res.write(
+        `data: ${JSON.stringify({ error: err.message || "failed" })}\n\n`
+      );
+    }
+  };
+
+  const interval = setInterval(sendSnapshot, ANALYTICS_REFRESH_MS);
+
+  req.on("close", () => {
+    closed = true;
+    clearInterval(interval);
+  });
+
+  req.on("end", () => {
+    closed = true;
+    clearInterval(interval);
+  });
+
+  sendSnapshot().catch((err) => {
+    closed = true;
+    clearInterval(interval);
+    next(err);
+  });
+});
 
 router.get("/events/:id/attendees/export.csv", async (req, res, next) => {
   try {
