@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ArrowDownTrayIcon,
   ArrowPathIcon,
   PhotoIcon,
   PlusIcon,
@@ -178,6 +179,21 @@ function EventsPage() {
 
   const isEditing = Boolean(formState.id);
 
+  const handleExport = useCallback((eventId, format) => {
+    if (!eventId) return;
+    const supported = ['csv', 'xlsx', 'pdf'];
+    if (!supported.includes(format)) return;
+
+    const url = `${API_BASE}/api/admin/events/${eventId}/attendees/export.${format}`;
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.target = '_blank';
+    anchor.rel = 'noopener';
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+  }, []);
+
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6">
       <section className="rounded-3xl bg-white px-6 py-6 shadow-sm">
@@ -217,6 +233,7 @@ function EventsPage() {
                   key={event.id}
                   event={event}
                   onEdit={populateForm}
+                  onExport={handleExport}
                   isActive={formState.id === event.id}
                 />
               ))}
@@ -369,7 +386,7 @@ function EventsPage() {
   );
 }
 
-function EventCard({ event, onEdit, isActive }) {
+function EventCard({ event, onEdit, onExport, isActive }) {
   const starts = formatDateTime(event.starts_at || event.performance_at);
   const ends = formatDateTime(event.ends_at);
   const posterSrc = resolvePosterUrl(event.poster_url);
@@ -408,7 +425,12 @@ function EventCard({ event, onEdit, isActive }) {
           )}
         </div>
       </div>
-      <div className="mt-4 flex justify-end">
+      <div className="mt-4 flex flex-col gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
+          <ExportButton label="CSV" onClick={() => onExport(event.id, 'csv')} />
+          <ExportButton label="Excel" onClick={() => onExport(event.id, 'xlsx')} />
+          <ExportButton label="PDF" onClick={() => onExport(event.id, 'pdf')} />
+        </div>
         <button
           type="button"
           onClick={() => onEdit(event)}
@@ -419,6 +441,19 @@ function EventCard({ event, onEdit, isActive }) {
         </button>
       </div>
     </div>
+  );
+}
+
+function ExportButton({ label, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-brand hover:text-brand"
+    >
+      <ArrowDownTrayIcon className="h-4 w-4" />
+      {label}
+    </button>
   );
 }
 

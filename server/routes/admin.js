@@ -2,6 +2,8 @@ const express = require("express");
 const path = require("path");
 const fs = require("fs");
 const multer = require("multer");
+const ExcelJS = require("exceljs");
+const PDFDocument = require("pdfkit");
 const { v4: uuidv4 } = require("uuid");
 const pool = require("../lib/db");
 const { signPayload, generateQrDataUrl } = require("../lib/qr");
@@ -56,6 +58,153 @@ function parseNumberOrNull(value) {
   if (value === undefined || value === null || value === "") return null;
   const num = Number(value);
   return Number.isFinite(num) ? num : null;
+}
+
+function slugify(value) {
+  if (!value || typeof value !== "string") return "event";
+  return (
+    value
+      .normalize("NFKD")
+      .replace(/[^\w\s-]/g, "")
+      .trim()
+      .replace(/[\s_-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .toLowerCase()
+      .substring(0, 80) || "event"
+  );
+}
+
+function toIsoString(value) {
+  if (!value) return "";
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : date.toISOString();
+}
+
+function formatSeat(attendee) {
+  const { section, row_label: rowLabel, seat_number: seatNumber } = attendee;
+  if (section || rowLabel || seatNumber) {
+    const parts = [];
+    if (section) parts.push(`Section ${section}`);
+    if (rowLabel) parts.push(`Row ${rowLabel}`);
+    if (seatNumber) parts.push(`Seat ${seatNumber}`);
+    return parts.join(" ");
+  }
+  return "Unassigned";
+}
+
+async function fetchEventWithAttendees(eventId) {
+  const [[event]] = await pool.query(
+    "SELECT id, name, starts_at, ends_at FROM events WHERE id = ?",
+    [eventId]
+  );
+
+  if (!event) {
+    return null;
+  }
+
+  const [attendees] = await pool.query(
+    `SELECT t.id, t.ticket_code, t.user_email, t.price, t.created_at, s.section, s.row_label, s.seat_number
+     FROM tickets t
+     LEFT JOIN seats s ON t.seat_id = s.id
+     WHERE t.event_id = ?
+     ORDER BY t.created_at DESC, t.id DESC`,
+    [eventId]
+  );
+
+  return { event, attendees };
+}
+
+function buildCsv(attendees) {
+  const headers = ["Email", "Ticket Code", "Seat", "Price", "Issued At"];
+  const escape = (value) => {
+    if (value === null || value === undefined) return "";
+    const str = String(value).replace(/"/g, '""');
+    return /[",\n]/.test(str) ? `"${str}"` : str;
+  };
+
+  const lines = [headers.map(escape).join(",")];
+  for (const attendee of attendees) {
+    lines.push(
+      [
+        attendee.user_email || "",
+        attendee.ticket_code || "",
+        formatSeat(attendee),
+        attendee.price != null ? attendee.price : "",
+        toIsoString(attendee.created_at),
+      ]
+        .map(escape)
+        .join(",")
+    );
+  }
+  return lines.join("\n");
+}
+
+async function buildExcel(attendees) {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet("Attendees");
+
+  sheet.columns = [
+    { header: "Email", key: "email", width: 35 },
+    { header: "Ticket Code", key: "ticketCode", width: 25 },
+    { header: "Seat", key: "seat", width: 30 },
+    { header: "Price", key: "price", width: 10 },
+    { header: "Issued At", key: "issuedAt", width: 25 },
+  ];
+
+  for (const attendee of attendees) {
+    sheet.addRow({
+      email: attendee.user_email || "",
+      ticketCode: attendee.ticket_code || "",
+      seat: formatSeat(attendee),
+      price: attendee.price != null ? attendee.price : "",
+      issuedAt: toIsoString(attendee.created_at),
+    });
+  }
+
+  sheet.getRow(1).font = { bold: true };
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  return Buffer.from(buffer);
+}
+
+function buildPdf(event, attendees, res, filename) {
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename="${filename}.pdf"`
+  );
+
+  const doc = new PDFDocument({ size: "A4", margin: 40 });
+  doc.pipe(res);
+
+  doc.fontSize(18).text("Attendee List", { align: "left" });
+  doc.moveDown(0.5);
+  doc.fontSize(12).text(`Event: ${event.name || ""}`);
+  if (event.starts_at) {
+    doc.text(`Starts: ${new Date(event.starts_at).toLocaleString()}`);
+  }
+  doc.moveDown();
+
+  if (attendees.length === 0) {
+    doc.text("No attendees yet.");
+    doc.end();
+    return;
+  }
+
+  attendees.forEach((attendee, idx) => {
+    doc.fontSize(12).text(`${idx + 1}. ${attendee.user_email || ""}`);
+    doc.fontSize(11).text(`   Ticket: ${attendee.ticket_code || ""}`);
+    doc.text(`   Seat: ${formatSeat(attendee)}`);
+    doc.text(
+      `   Price: ${
+        attendee.price != null && attendee.price !== "" ? attendee.price : "N/A"
+      }`
+    );
+    doc.text(`   Issued: ${toIsoString(attendee.created_at) || ""}`);
+    doc.moveDown(0.5);
+  });
+
+  doc.end();
 }
 
 async function listEvents(req, res, next) {
@@ -190,6 +339,83 @@ async function updateEvent(req, res, next) {
 router.get("/events", listEvents);
 router.post("/events", upload.single("poster"), createEvent);
 router.put("/events/:id", upload.single("poster"), updateEvent);
+
+router.get("/events/:id/attendees/export.csv", async (req, res, next) => {
+  try {
+    const eventId = Number(req.params.id);
+    if (!eventId) {
+      return res.status(400).json({ error: "Invalid event id" });
+    }
+
+    const result = await fetchEventWithAttendees(eventId);
+    if (!result) {
+      return res.status(404).json({ error: "Event not found" });
+    }
+
+    const { event, attendees } = result;
+    const csv = buildCsv(attendees);
+    const filename = `${slugify(event.name)}-attendees`;
+
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${filename}.csv"`
+    );
+    res.send(csv);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get("/events/:id/attendees/export.xlsx", async (req, res, next) => {
+  try {
+    const eventId = Number(req.params.id);
+    if (!eventId) {
+      return res.status(400).json({ error: "Invalid event id" });
+    }
+
+    const result = await fetchEventWithAttendees(eventId);
+    if (!result) {
+      return res.status(404).json({ error: "Event not found" });
+    }
+
+    const { event, attendees } = result;
+    const buffer = await buildExcel(attendees);
+    const filename = `${slugify(event.name)}-attendees`;
+
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${filename}.xlsx"`
+    );
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.send(buffer);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get("/events/:id/attendees/export.pdf", async (req, res, next) => {
+  try {
+    const eventId = Number(req.params.id);
+    if (!eventId) {
+      return res.status(400).json({ error: "Invalid event id" });
+    }
+
+    const result = await fetchEventWithAttendees(eventId);
+    if (!result) {
+      return res.status(404).json({ error: "Event not found" });
+    }
+
+    const { event, attendees } = result;
+    const filename = `${slugify(event.name)}-attendees`;
+    buildPdf(event, attendees, res, filename);
+  } catch (err) {
+    next(err);
+  }
+});
 
 router.get("/events/:id/seats", async (req, res, next) => {
   try {
