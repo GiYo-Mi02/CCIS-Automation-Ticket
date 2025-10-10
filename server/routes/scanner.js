@@ -37,7 +37,7 @@ router.post("/verify-qr", async (req, res, next) => {
 
   try {
     const [[ticket]] = await pool.query(
-      `SELECT t.id, t.ticket_code, t.status, t.user_email, t.used_at, t.event_id, t.seat_id,
+      `SELECT t.id, t.ticket_code, t.status, t.user_email, t.user_name, t.used_at, t.event_id, t.seat_id,
               e.name AS event_name,
               s.section, s.row_label, s.seat_number
          FROM tickets t
@@ -62,6 +62,7 @@ router.post("/verify-qr", async (req, res, next) => {
         ticketId: ticket.id,
         ticketCode: ticket.ticket_code,
         attendee: ticket.user_email,
+        attendeeName: ticket.user_name || null,
         eventName: ticket.event_name || null,
         seatLabel: buildSeatLabel(ticket),
       });
@@ -73,6 +74,7 @@ router.post("/verify-qr", async (req, res, next) => {
         ticketId: ticket.id,
         ticketCode: ticket.ticket_code,
         attendee: ticket.user_email,
+        attendeeName: ticket.user_name || null,
         eventName: ticket.event_name || null,
         seatLabel: buildSeatLabel(ticket),
       });
@@ -94,6 +96,7 @@ router.post("/verify-qr", async (req, res, next) => {
       ticketId: ticket.id,
       ticketCode: ticket.ticket_code,
       attendee: ticket.user_email,
+      attendeeName: ticket.user_name || null,
       eventName: ticket.event_name || null,
       seatLabel: buildSeatLabel(ticket),
       usedAt: usedAt.toISOString(),

@@ -67,7 +67,9 @@ async function processPendingEmails(limit = 200) {
 
       await transporter.sendMail({
         from: MAIL_FROM,
-        to: mail.to_email,
+        to: mail.to_name
+          ? { name: mail.to_name, address: mail.to_email }
+          : mail.to_email,
         subject: mail.subject,
         html: mail.body,
         attachments,

@@ -309,7 +309,7 @@ async function fetchEventWithAttendees(eventId) {
   }
 
   const [attendees] = await pool.query(
-    `SELECT t.id, t.ticket_code, t.user_email, t.price, t.created_at, s.section, s.row_label, s.seat_number
+    `SELECT t.id, t.ticket_code, t.user_email, t.user_name, t.price, t.created_at, s.section, s.row_label, s.seat_number
      FROM tickets t
      LEFT JOIN seats s ON t.seat_id = s.id
      WHERE t.event_id = ?
@@ -321,7 +321,14 @@ async function fetchEventWithAttendees(eventId) {
 }
 
 function buildCsv(attendees) {
-  const headers = ["Email", "Ticket Code", "Seat", "Price", "Issued At"];
+  const headers = [
+    "Name",
+    "Email",
+    "Ticket Code",
+    "Seat",
+    "Price",
+    "Issued At",
+  ];
   const escape = (value) => {
     if (value === null || value === undefined) return "";
     const str = String(value).replace(/"/g, '""');
@@ -332,6 +339,7 @@ function buildCsv(attendees) {
   for (const attendee of attendees) {
     lines.push(
       [
+        attendee.user_name || "",
         attendee.user_email || "",
         attendee.ticket_code || "",
         formatSeat(attendee),
@@ -350,6 +358,7 @@ async function buildExcel(attendees) {
   const sheet = workbook.addWorksheet("Attendees");
 
   sheet.columns = [
+    { header: "Name", key: "name", width: 28 },
     { header: "Email", key: "email", width: 35 },
     { header: "Ticket Code", key: "ticketCode", width: 25 },
     { header: "Seat", key: "seat", width: 30 },
@@ -359,6 +368,7 @@ async function buildExcel(attendees) {
 
   for (const attendee of attendees) {
     sheet.addRow({
+      name: attendee.user_name || "",
       email: attendee.user_email || "",
       ticketCode: attendee.ticket_code || "",
       seat: formatSeat(attendee),
@@ -398,7 +408,10 @@ function buildPdf(event, attendees, res, filename) {
   }
 
   attendees.forEach((attendee, idx) => {
-    doc.fontSize(12).text(`${idx + 1}. ${attendee.user_email || ""}`);
+    const nameSuffix = attendee.user_name ? ` (${attendee.user_name})` : "";
+    doc
+      .fontSize(12)
+      .text(`${idx + 1}. ${attendee.user_email || ""}${nameSuffix}`);
     doc.fontSize(11).text(`   Ticket: ${attendee.ticket_code || ""}`);
     doc.text(`   Seat: ${formatSeat(attendee)}`);
     doc.text(
@@ -763,7 +776,7 @@ router.post("/events/:id/auto-assign", async (req, res, next) => {
 });
 
 router.post("/tickets/create", async (req, res, next) => {
-  const { event_id, seat_id, user_email, price } = req.body;
+  const { event_id, seat_id, user_email, user_name, price } = req.body;
 
   if (!event_id || !seat_id || !user_email) {
     return res
@@ -780,8 +793,15 @@ router.post("/tickets/create", async (req, res, next) => {
       await connection.beginTransaction();
 
       const [ticketResult] = await connection.query(
-        "INSERT INTO tickets (ticket_code, user_email, event_id, seat_id, price) VALUES (?, ?, ?, ?, ?)",
-        [ticketCode, user_email, event_id, seat_id, price || 0]
+        "INSERT INTO tickets (ticket_code, user_email, user_name, event_id, seat_id, price) VALUES (?, ?, ?, ?, ?, ?)",
+        [
+          ticketCode,
+          user_email,
+          user_name || null,
+          event_id,
+          seat_id,
+          price || 0,
+        ]
       );
 
       await connection.query('UPDATE seats SET status = "sold" WHERE id = ?', [
@@ -792,6 +812,8 @@ router.post("/tickets/create", async (req, res, next) => {
         ticket_id: ticketResult.insertId,
         event_id,
         seat_id,
+        user_email,
+        user_name: user_name || null,
         issued_at: new Date().toISOString(),
         nonce: uuidv4(),
       };
@@ -857,12 +879,12 @@ async function fetchNextSeat(connection, eventId) {
   return rows[0];
 }
 
-async function createTicketWithQr(connection, { eventId, seat, email }) {
+async function createTicketWithQr(connection, { eventId, seat, email, name }) {
   const ticketCode = `CCIS-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 
   const [ticketResult] = await connection.query(
-    "INSERT INTO tickets (ticket_code, user_email, event_id, seat_id, price) VALUES (?, ?, ?, ?, ?)",
-    [ticketCode, email, eventId, seat.id, 0]
+    "INSERT INTO tickets (ticket_code, user_email, user_name, event_id, seat_id, price) VALUES (?, ?, ?, ?, ?, ?)",
+    [ticketCode, email, name || null, eventId, seat.id, 0]
   );
 
   await connection.query('UPDATE seats SET status = "sold" WHERE id = ?', [
@@ -873,6 +895,8 @@ async function createTicketWithQr(connection, { eventId, seat, email }) {
     ticket_id: ticketResult.insertId,
     event_id: eventId,
     seat_id: seat.id,
+    user_email: email,
+    user_name: name || null,
     issued_at: new Date().toISOString(),
     nonce: uuidv4(),
   };
@@ -942,6 +966,7 @@ router.post("/emails/bulk", async (req, res, next) => {
         eventId,
         seat,
         email: person.email,
+        name: person.name,
       });
 
       const seatLabel = `Section ${seat.section} Row ${seat.row_label} Seat ${seat.seat_number}`;
@@ -982,12 +1007,23 @@ router.post("/emails/bulk", async (req, res, next) => {
       ];
 
       await connection.query(
-        "INSERT INTO email_queue (to_email, subject, body, attachments, status) VALUES (?, ?, ?, ?, 'pending')",
-        [person.email, resolvedSubject, body, JSON.stringify(attachments)]
+        "INSERT INTO email_queue (to_email, to_name, subject, body, attachments, status) VALUES (?, ?, ?, ?, ?, 'pending')",
+        [
+          person.email,
+          person.name || null,
+          resolvedSubject,
+          body,
+          JSON.stringify(attachments),
+        ]
       );
 
       queued += 1;
-      details.push({ email: person.email, seat: seatLabel, ticketCode });
+      details.push({
+        email: person.email,
+        name: person.name || null,
+        seat: seatLabel,
+        ticketCode,
+      });
     }
 
     await connection.commit();

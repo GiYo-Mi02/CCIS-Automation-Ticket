@@ -8,7 +8,8 @@
     "start": "node app.js",
     "dev": "nodemon app.js",
     "worker": "node worker/startMailer.js",
-    "generate:seats": "node scripts/generateSeats.js"
+    "generate:seats": "node scripts/generateSeats.js",
+    "db:migrate:names": "node scripts/updateSchemaNames.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

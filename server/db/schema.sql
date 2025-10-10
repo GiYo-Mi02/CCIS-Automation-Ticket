@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS tickets (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   ticket_code VARCHAR(128) UNIQUE,
   user_email VARCHAR(255),
+  user_name VARCHAR(255),
   event_id BIGINT NOT NULL,
   seat_id BIGINT,
   price DECIMAL(10,2) DEFAULT 0,
@@ -55,6 +56,7 @@ CREATE TABLE IF NOT EXISTS tickets (
 CREATE TABLE IF NOT EXISTS email_queue (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   to_email VARCHAR(255) NOT NULL,
+  to_name VARCHAR(255),
   subject VARCHAR(255),
   body LONGTEXT,
   attachments JSON DEFAULT NULL,

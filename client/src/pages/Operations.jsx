@@ -20,6 +20,7 @@ function OperationsPage() {
   const [loading, setLoading] = useState(false);
   const [autoAssignQty, setAutoAssignQty] = useState(1);
   const [autoAssignResult, setAutoAssignResult] = useState(null);
+  const [createForm, setCreateForm] = useState({ seat_id: '', user_email: '', user_name: '', price: '' });
 
   const loadSeats = useCallback(async (id) => {
     setLoading(true);
@@ -152,6 +153,100 @@ function OperationsPage() {
         <SeatMap seats={seats} isLoading={loading} />
 
         <div className="flex flex-col gap-6">
+          <div className="glass-card space-y-4 p-6">
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold text-white">Create ticket (manual)</h3>
+              <p className="text-sm text-slate-200/80">Issue a single ticket to a specified seat and email.</p>
+            </div>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const seatId = Number(createForm.seat_id);
+                if (!Number.isInteger(seatId) || seatId <= 0) {
+                  alert('Seat ID must be a positive number');
+                  return;
+                }
+                if (!createForm.user_email.trim()) {
+                  alert('Email is required');
+                  return;
+                }
+                try {
+                  await apiFetch('/api/admin/tickets/create', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                      event_id: eventId,
+                      seat_id: seatId,
+                      user_email: createForm.user_email.trim(),
+                      user_name: createForm.user_name.trim() || undefined,
+                      price: createForm.price !== '' ? Number(createForm.price) : undefined,
+                    }),
+                  });
+                  setCreateForm({ seat_id: '', user_email: '', user_name: '', price: '' });
+                  await loadSeats(eventId);
+                  alert('Ticket created');
+                } catch (err) {
+                  console.error(err);
+                  alert(err.message || 'Failed to create ticket');
+                }
+              }}
+              className="space-y-3"
+            >
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <label htmlFor="create-seat" className="input-label">Seat ID</label>
+                  <input
+                    id="create-seat"
+                    type="number"
+                    min="1"
+                    value={createForm.seat_id}
+                    onChange={(e) => setCreateForm((p) => ({ ...p, seat_id: e.target.value }))}
+                    className="input-field"
+                    placeholder="e.g. 1234"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label htmlFor="create-price" className="input-label">Price (optional)</label>
+                  <input
+                    id="create-price"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={createForm.price}
+                    onChange={(e) => setCreateForm((p) => ({ ...p, price: e.target.value }))}
+                    className="input-field"
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <label htmlFor="create-email" className="input-label">Email</label>
+                  <input
+                    id="create-email"
+                    type="email"
+                    value={createForm.user_email}
+                    onChange={(e) => setCreateForm((p) => ({ ...p, user_email: e.target.value }))}
+                    className="input-field"
+                    placeholder="user@example.com"
+                    required
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label htmlFor="create-name" className="input-label">Name (optional)</label>
+                  <input
+                    id="create-name"
+                    type="text"
+                    value={createForm.user_name}
+                    onChange={(e) => setCreateForm((p) => ({ ...p, user_name: e.target.value }))}
+                    className="input-field"
+                    placeholder="Jane Doe"
+                  />
+                </div>
+              </div>
+              <button type="submit" className="primary-button w-full">Issue ticket</button>
+            </form>
+          </div>
+
           <div className="glass-card space-y-4 p-6">
             <div className="space-y-2">
               <h3 className="text-lg font-semibold text-white">Auto assign contiguous seats</h3>

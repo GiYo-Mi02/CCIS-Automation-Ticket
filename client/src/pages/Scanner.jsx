@@ -13,6 +13,7 @@ function createInitialScannerState() {
   return {
     statusMsg: 'Align QR code within the frame',
     lastResult: null,
+    scanStatus: 'idle', // idle | success | used | invalid | error | processing
     isVerifying: false,
     isStarting: false,
     error: null,
@@ -72,6 +73,84 @@ function describeCameraError(error) {
 }
 
 function ScannerPage() {
+  // --- Audio Tone Engine ----------------------------------------------------
+  const audioCtxRef = useRef(null);
+  const lastPlayedRef = useRef({}); // key -> timestamp to debounce rapid repeats
+
+  const ensureAudioContext = () => {
+    if (!audioCtxRef.current) {
+      try {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        audioCtxRef.current = new Ctx();
+      } catch (err) {
+        console.warn('Web Audio not supported', err);
+      }
+    }
+    return audioCtxRef.current;
+  };
+
+  const playTone = useCallback((sequenceKey, steps) => {
+    const ctx = ensureAudioContext();
+    if (!ctx || !Array.isArray(steps) || steps.length === 0) return;
+    const now = ctx.currentTime;
+    const last = lastPlayedRef.current[sequenceKey] || 0;
+    if (now - last < 0.4) return; // minimal debounce
+    lastPlayedRef.current[sequenceKey] = now;
+
+    steps.forEach((step, i) => {
+      const { freq = 880, dur = 0.12, vol = 0.25, type = 'sine', glide = 0 } = step || {};
+      const start = now + i * (step.offset ?? dur * 0.85);
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = type;
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(vol, start + 0.01);
+      gain.gain.linearRampToValueAtTime(0.0001, start + dur);
+      if (glide) {
+        osc.frequency.exponentialRampToValueAtTime(Math.max(40, freq + glide), start + dur);
+      }
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + dur + 0.02);
+    });
+  }, []);
+
+  const playStatusTone = useCallback((status) => {
+    switch (status) {
+      case 'success':
+        // Pleasant ascending triad
+        playTone('success', [
+          { freq: 523.25, dur: 0.10, vol: 0.22, type: 'sine' },
+          { freq: 659.25, dur: 0.11, vol: 0.22, type: 'sine' },
+          { freq: 784.0, dur: 0.14, vol: 0.20, type: 'sine' }
+        ]);
+        break;
+      case 'used':
+        // Soft descending (amber) alert
+        playTone('used', [
+          { freq: 660, dur: 0.13, vol: 0.2, type: 'triangle', glide: -120 },
+          { freq: 520, dur: 0.14, vol: 0.18, type: 'triangle' }
+        ]);
+        break;
+      case 'invalid':
+        // Sharp dissonant double beep
+        playTone('invalid', [
+          { freq: 480, dur: 0.12, vol: 0.23, type: 'square' },
+          { freq: 360, dur: 0.18, vol: 0.23, type: 'square', offset: 0.12 }
+        ]);
+        break;
+      case 'error':
+        playTone('error', [
+          { freq: 160, dur: 0.25, vol: 0.25, type: 'sawtooth', glide: -80 }
+        ]);
+        break;
+      default:
+        break;
+    }
+  }, [playTone]);
+
+  // -------------------------------------------------------------------------
   const scannerRefs = useRef({});
   const statusResetRefs = useRef(SCANNERS.map(() => null));
   const lastDecodedRefs = useRef(SCANNERS.map(() => ({ text: null, timestamp: 0 })));
@@ -131,6 +210,7 @@ function ScannerPage() {
       updateScannerState(index, {
         isVerifying: true,
         statusMsg: 'Checking ticket…',
+        scanStatus: 'processing',
         error: null,
         errorDetail: null
       });
@@ -143,11 +223,21 @@ function ScannerPage() {
 
         updateScannerState(index, {
           lastResult: { ok: true, data: result, at: new Date() },
-          statusMsg: `✅ Ticket accepted (${result.ticketCode}). Ready for the next attendee.`,
+          statusMsg: `✅ Ticket accepted${result.attendeeName ? ` for ${result.attendeeName}` : ''} (${result.ticketCode}). Ready for the next attendee.`,
+          scanStatus: 'success',
           error: null,
           errorDetail: null
         });
+        playStatusTone('success');
       } catch (err) {
+        // Map error to scan status (used / invalid / generic)
+        let derivedStatus = 'error';
+        const msg = (err.message || '').toLowerCase();
+        if (msg.includes('already used')) {
+          derivedStatus = 'used';
+        } else if (msg.includes('cancelled') || msg.includes('signature') || msg.includes('not valid') || msg.includes('not found') || msg.includes('invalid')) {
+          derivedStatus = 'invalid';
+        }
         updateScannerState(index, {
           lastResult: {
             ok: false,
@@ -156,20 +246,22 @@ function ScannerPage() {
             data: err.payload || null
           },
           statusMsg: `❌ ${err.message || 'Rejected'}. Present another ticket when ready.`,
+          scanStatus: derivedStatus,
           error: null,
           errorDetail: null
         });
+        playStatusTone(derivedStatus);
       } finally {
         verifyingRefs.current[index] = false;
         updateScannerState(index, { isVerifying: false });
 
         clearTimeout(statusResetRefs.current[index]);
         statusResetRefs.current[index] = setTimeout(() => {
-          updateScannerState(index, { statusMsg: 'Scanner ready. Present the QR code.' });
+          updateScannerState(index, { statusMsg: 'Scanner ready. Present the QR code.', scanStatus: 'idle' });
         }, DUPLICATE_GUARD_MS);
       }
     },
-    [updateScannerState]
+    [updateScannerState, playStatusTone]
   );
 
   const startScanner = useCallback(
@@ -397,15 +489,51 @@ function ScannerPage() {
                   <p className="glass-section-label">{config.label}</p>
                   <h3 className="text-lg font-semibold text-white">Scanner station</h3>
                 </div>
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em] ${
-                    state.isVerifying
-                      ? 'bg-emerald-500/20 text-emerald-200'
-                      : 'bg-white/5 text-slate-300'
-                  }`}
-                >
-                  {state.isVerifying ? 'Processing' : 'Idle'}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`inline-flex h-3 w-3 rounded-full ring-2 ring-offset-2 ring-offset-slate-900/50 transition-shadow duration-300 ${
+                      state.scanStatus === 'processing'
+                        ? 'animate-pulse bg-sky-400 ring-sky-400/40'
+                        : state.scanStatus === 'success'
+                        ? 'bg-emerald-400 ring-emerald-400/40'
+                        : state.scanStatus === 'used'
+                        ? 'bg-amber-400 ring-amber-400/40'
+                        : state.scanStatus === 'invalid'
+                        ? 'bg-rose-500 ring-rose-500/40'
+                        : state.scanStatus === 'error'
+                        ? 'bg-rose-700 ring-rose-600/40'
+                        : 'bg-slate-500 ring-slate-400/40'
+                    }`}
+                    aria-label={`Scan status: ${state.scanStatus}`}
+                  />
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em] ${
+                      state.scanStatus === 'processing'
+                        ? 'bg-sky-500/20 text-sky-200'
+                        : state.scanStatus === 'success'
+                        ? 'bg-emerald-500/20 text-emerald-200'
+                        : state.scanStatus === 'used'
+                        ? 'bg-amber-500/20 text-amber-200'
+                        : state.scanStatus === 'invalid'
+                        ? 'bg-rose-500/25 text-rose-200'
+                        : state.scanStatus === 'error'
+                        ? 'bg-rose-700/30 text-rose-200'
+                        : 'bg-white/5 text-slate-300'
+                    }`}
+                  >
+                    {state.scanStatus === 'processing'
+                      ? 'Processing'
+                      : state.scanStatus === 'success'
+                      ? 'Accepted'
+                      : state.scanStatus === 'used'
+                      ? 'Used'
+                      : state.scanStatus === 'invalid'
+                      ? 'Invalid'
+                      : state.scanStatus === 'error'
+                      ? 'Error'
+                      : 'Idle'}
+                  </span>
+                </div>
               </div>
 
               <div className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/5 p-4">
@@ -508,6 +636,7 @@ function ScannerPage() {
                       <>
                         <p>Ticket: {state.lastResult.data.ticketCode}</p>
                         {state.lastResult.data.attendee && <p>Attendee: {state.lastResult.data.attendee}</p>}
+                        {state.lastResult.data.attendeeName && <p>Name: {state.lastResult.data.attendeeName}</p>}
                         {state.lastResult.data.eventName && <p>Event: {state.lastResult.data.eventName}</p>}
                         {state.lastResult.data.seatLabel && <p>Seat: {state.lastResult.data.seatLabel}</p>}
                         <p>Status: {state.lastResult.data.message}</p>
@@ -517,6 +646,7 @@ function ScannerPage() {
                         <p>Reason: {state.lastResult.message}</p>
                         {state.lastResult.data?.ticketCode && <p>Ticket: {state.lastResult.data.ticketCode}</p>}
                         {state.lastResult.data?.attendee && <p>Attendee: {state.lastResult.data.attendee}</p>}
+                        {state.lastResult.data?.attendeeName && <p>Name: {state.lastResult.data.attendeeName}</p>}
                         {state.lastResult.data?.eventName && <p>Event: {state.lastResult.data.eventName}</p>}
                         {state.lastResult.data?.seatLabel && <p>Seat: {state.lastResult.data.seatLabel}</p>}
                       </div>
