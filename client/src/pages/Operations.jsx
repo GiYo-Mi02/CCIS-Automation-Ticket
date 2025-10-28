@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiFetch } from '../api/client.js';
 import BulkEmailUploader from '../components/BulkEmailUploader.jsx';
-import SeatMap from '../components/SeatMap.jsx';
 import StatCard from '../components/StatCard.jsx';
 
 const DEFAULT_EVENT_ID = Number(import.meta.env.VITE_DEFAULT_EVENT_ID || 1);
@@ -125,13 +124,6 @@ function OperationsPage() {
         </form>
       </section>
 
-      <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-5">
-        <StatCard label="Total seats" value={stats.total ?? '—'} />
-        <StatCard label="Available" value={stats.available ?? 0} accent={statusColors.available} />
-        <StatCard label="Reserved" value={stats.reserved ?? 0} accent={statusColors.reserved} />
-        <StatCard label="Sold" value={stats.sold ?? 0} accent={statusColors.sold} />
-        <StatCard label="Blocked" value={stats.blocked ?? 0} accent={statusColors.blocked} />
-      </section>
 
       <section className="glass-panel flex flex-col gap-4 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -149,11 +141,14 @@ function OperationsPage() {
         </div>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
-        <SeatMap seats={seats} isLoading={loading} />
-
-        <div className="flex flex-col gap-6">
-          <div className="glass-card space-y-4 p-6">
+      {/* Ticketing tools section */}
+      <section className="space-y-4">
+        <div>
+          <p className="glass-section-label">Ticketing tools</p>
+          <h3 className="text-lg font-semibold text-white">Manual issuing and seat utilities</h3>
+        </div>
+        <div className="grid gap-6 md:grid-cols-1 xl:grid-cols-2">
+          <div className="glass-card h-full space-y-4 p-6 flex flex-col">
             <div className="space-y-2">
               <h3 className="text-lg font-semibold text-white">Create ticket (manual)</h3>
               <p className="text-sm text-slate-200/80">Issue a single ticket to a specified seat and email.</p>
@@ -191,7 +186,7 @@ function OperationsPage() {
               }}
               className="space-y-3"
             >
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="flex gap-3 sm:grid-cols-2">
                 <div className="space-y-1">
                   <label htmlFor="create-seat" className="input-label">Seat ID</label>
                   <input
@@ -247,7 +242,7 @@ function OperationsPage() {
             </form>
           </div>
 
-          <div className="glass-card space-y-4 p-6">
+          <div className="glass-card h-full space-y-4 p-6 flex flex-col">
             <div className="space-y-2">
               <h3 className="text-lg font-semibold text-white">Auto assign contiguous seats</h3>
               <p className="text-sm text-slate-200/80">
@@ -285,9 +280,16 @@ function OperationsPage() {
               </div>
             )}
           </div>
-
-          <BulkEmailUploader eventId={eventId} onQueued={() => loadSeats(eventId)} />
         </div>
+      </section>
+
+      {/* Communications section */}
+      <section className="space-y-4">
+        <div>
+          <p className="glass-section-label">Communications</p>
+          <h3 className="text-lg font-semibold text-white">Bulk email queue</h3>
+        </div>
+        <BulkEmailUploader eventId={eventId} onQueued={() => loadSeats(eventId)} />
       </section>
     </div>
   );

@@ -29,6 +29,7 @@ function EventsPage() {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
   const [formState, setFormState] = useState(initialFormState);
   const fileInputRef = useRef(null);
   const localPreviewRef = useRef(null);
@@ -208,6 +209,30 @@ function EventsPage() {
     document.body.removeChild(anchor);
   }, []);
 
+  const handleDelete = useCallback(async (event) => {
+    if (!event?.id) return;
+    const confirmed = window.confirm(
+      `Delete event "${event.name}" and all its tickets? This cannot be undone.`
+    );
+    if (!confirmed) return;
+    try {
+      setDeletingId(event.id);
+      await apiFetch(`/api/admin/events/${event.id}`, { method: 'DELETE' });
+      if (formState.id === event.id) {
+        // If currently editing this event, reset the form
+        setFormState(initialFormState);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+      await loadEvents();
+      alert('Event deleted');
+    } catch (err) {
+      console.error(err);
+      alert(err.message || 'Failed to delete event');
+    } finally {
+      setDeletingId(null);
+    }
+  }, [formState.id, loadEvents]);
+
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-8">
       <section className="glass-panel px-6 py-6">
@@ -276,6 +301,8 @@ function EventsPage() {
                   analytics={analyticsById[event.id]}
                   onEdit={populateForm}
                   onExport={handleExport}
+                  onDelete={handleDelete}
+                  deletingId={deletingId}
                   isActive={formState.id === event.id}
                 />
               ))}
@@ -424,7 +451,7 @@ function EventsPage() {
   );
 }
 
-function EventCard({ event, onEdit, onExport, isActive, analytics }) {
+function EventCard({ event, onEdit, onExport, onDelete, deletingId, isActive, analytics }) {
   const starts = formatDateTime(event.starts_at || event.performance_at);
   const ends = formatDateTime(event.ends_at);
   const posterSrc = resolvePosterUrl(event.poster_url);
@@ -519,14 +546,25 @@ function EventCard({ event, onEdit, onExport, isActive, analytics }) {
           <ExportButton label="Excel" onClick={() => onExport(event.id, 'xlsx')} />
           <ExportButton label="PDF" onClick={() => onExport(event.id, 'pdf')} />
         </div>
-        <button
-          type="button"
-          onClick={() => onEdit(event)}
-          className="secondary-button h-10 px-4 py-2 text-xs uppercase tracking-[0.2em]"
-        >
-          <PencilSquareIcon className="h-4 w-4" />
-          Edit
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onEdit(event)}
+            className="secondary-button h-10 px-4 py-2 text-xs uppercase tracking-[0.2em]"
+          >
+            <PencilSquareIcon className="h-4 w-4" />
+            Edit
+          </button>
+          <button
+            type="button"
+            onClick={() => onDelete?.(event)}
+            disabled={deletingId === event.id}
+            className="h-10 rounded-xl border border-rose-500/40 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-rose-300 hover:border-rose-400 hover:text-rose-200 disabled:opacity-60"
+            title="Delete event"
+          >
+            {deletingId === event.id ? 'Deleting…' : 'Delete'}
+          </button>
+        </div>
       </div>
     </div>
   );

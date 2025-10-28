@@ -36,7 +36,7 @@ function parseAttachments(raw) {
   return undefined;
 }
 
-async function processPendingEmails(limit = 200) {
+async function processPendingEmails(limit = 400) {
   const [rows] = await pool.query(
     'SELECT * FROM email_queue WHERE status = "pending" ORDER BY created_at LIMIT ?',
     [limit]

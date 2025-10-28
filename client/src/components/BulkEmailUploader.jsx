@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { apiFetch } from '../api/client.js';
 
 const DEFAULT_SUBJECT_TEMPLATE = 'Your Ticket for {{event}}';
@@ -16,13 +16,31 @@ const DEFAULT_BODY_TEMPLATE = `<!doctype html>
 
 function BulkEmailUploader({ eventId, onQueued }) {
   const fileInputRef = useRef(null);
+  const bannerInputRef = useRef(null);
   const [manualEntries, setManualEntries] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [lastReport, setLastReport] = useState(null);
   const [subjectTemplate, setSubjectTemplate] = useState(DEFAULT_SUBJECT_TEMPLATE);
   const [bodyTemplate, setBodyTemplate] = useState(DEFAULT_BODY_TEMPLATE);
+  const [usePoster, setUsePoster] = useState(false);
+  const [hasPoster, setHasPoster] = useState(null);
   const manualRecipients = useMemo(() => parseLines(manualEntries), [manualEntries]);
+
+  // Detect if current event has a poster
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const events = await apiFetch('/api/admin/events');
+        const current = Array.isArray(events) ? events.find((e) => e.id === Number(eventId)) : null;
+        if (!cancelled) setHasPoster(Boolean(current?.poster_url));
+      } catch (_) {
+        if (!cancelled) setHasPoster(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [eventId]);
 
   const handleSubmit = async (evt) => {
     evt.preventDefault();
@@ -43,16 +61,27 @@ function BulkEmailUploader({ eventId, onQueued }) {
       return;
     }
 
+    // If user wants poster but none is available and no banner file attached, warn
+    const bannerFile = bannerInputRef.current?.files?.[0] || null;
+    if (usePoster && hasPoster === false && !bannerFile) {
+      const proceed = confirm('This event has no poster set. Upload a banner image or uncheck "Use event poster as banner". Continue anyway?');
+      if (!proceed) return;
+    }
+
     setIsUploading(true);
     try {
+      // Prepare multipart form-data for optional banner upload
+      const form = new FormData();
+      form.append('event_id', String(eventId));
+      form.append('list', JSON.stringify(recipients));
+      form.append('subject', subjectTemplate);
+      form.append('bodyTemplate', bodyTemplate);
+      if (usePoster) form.append('use_poster', 'true');
+      if (bannerFile) form.append('banner', bannerFile);
+
       const data = await apiFetch('/api/admin/emails/bulk', {
         method: 'POST',
-        body: {
-          event_id: eventId,
-          list: recipients,
-          subject: subjectTemplate,
-          bodyTemplate,
-        }
+        body: form,
       });
 
       setLastReport({ type: 'queue', queued: data.queued, at: new Date(), details: data.details || [] });
@@ -108,6 +137,34 @@ function BulkEmailUploader({ eventId, onQueued }) {
           />
         </div>
 
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2">
+            <label className="input-label">Optional banner image</label>
+            <input
+              ref={bannerInputRef}
+              type="file"
+              accept="image/*"
+              className="block w-full text-sm text-slate-200 file:mr-4 file:rounded-xl file:border-0 file:bg-gradient-to-r file:from-emerald-500 file:via-teal-500 file:to-cyan-500 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:brightness-110"
+            />
+            <p className="text-xs text-slate-400">If provided, this image will be embedded inline as a banner.</p>
+          </div>
+          <div className="space-y-2">
+            <label className="input-label" htmlFor="use-poster">
+              Use event poster as banner
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                id="use-poster"
+                type="checkbox"
+                checked={usePoster}
+                onChange={(e) => setUsePoster(e.target.checked)}
+                className="h-4 w-4"
+              />
+              <span className="text-xs text-slate-300/80">If checked (and no banner file uploaded), the event poster will be embedded.</span>
+            </div>
+          </div>
+        </div>
+
         <div className="space-y-2">
           <label className="input-label" htmlFor="manual-list">
             Manual entries
@@ -154,17 +211,23 @@ function BulkEmailUploader({ eventId, onQueued }) {
           />
           <div className="space-y-1 text-xs text-slate-300/80">
             <p>
-              Available placeholders: <code>{'{{name}}'}</code>, <code>{'{{email}}'}</code>, <code>{'{{event}}'}</code>, <code>{'{{seat}}'}</code>, <code>{'{{ticket_code}}'}</code>, <code>{'{{qr_cid}}'}</code>, <code>{'{{qr_data_url}}'}</code>, <code>{'{{event_starts}}'}</code>.
+              Available placeholders: <code>{'{{name}}'}</code>, <code>{'{{email}}'}</code>, <code>{'{{event}}'}</code>, <code>{'{{seat}}'}</code>, <code>{'{{ticket_code}}'}</code>, <code>{'{{qr_cid}}'}</code>, <code>{'{{qr_data_url}}'}</code>, <code>{'{{event_starts}}'}</code>, <code>{'{{poster_cid}}'}</code>, <code>{'{{poster_url}}'}</code>.
             </p>
             <p>
               To embed the QR inline, use <code>{'<img src="cid:{{qr_cid}}" alt="QR code" />'}</code>.
+            </p>
+            <p>
+              To embed the banner/poster inline, use <code>{'<img src="cid:{{poster_cid}}" alt="Banner" />'}</code> (or reference <code>{'{{poster_url}}'}</code> for a remote URL).
             </p>
           </div>
         </div>
 
         <div className="flex items-center justify-between text-xs text-slate-300/80">
           <span>Manual recipients: {manualRecipients.length}</span>
-          <span>{fileInputRef.current?.files?.length ? 'CSV attached' : 'No CSV file'}</span>
+          <span>
+            {(fileInputRef.current?.files?.length ? 'CSV attached' : 'No CSV file')}
+            {bannerInputRef.current?.files?.length ? ' · Banner attached' : ''}
+          </span>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">

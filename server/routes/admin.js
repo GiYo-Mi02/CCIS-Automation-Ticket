@@ -16,7 +16,6 @@ const DEFAULT_EMAIL_TEMPLATE = `<!doctype html>
 <p>Hi {{name}},</p>
 <p>Here are your ticket details for <strong>{{event}}</strong>:</p>
 <ul>
-  <li><strong>Seat:</strong> {{seat}}</li>
   <li><strong>Ticket Code:</strong> {{ticket_code}}</li>
   <li><strong>Starts:</strong> {{event_starts}}</li>
 </ul>
@@ -44,6 +43,28 @@ const upload = multer({
   fileFilter: (_req, file, cb) => {
     if (!file.mimetype.startsWith("image/")) {
       return cb(new Error("Poster must be an image"));
+    }
+    cb(null, true);
+  },
+});
+
+// Email banner uploads directory
+const bannersDir = path.join(__dirname, "..", "uploads", "banners");
+fs.mkdirSync(bannersDir, { recursive: true });
+const bannerStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, bannersDir),
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname) || ".png";
+    const safeName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+    cb(null, safeName);
+  },
+});
+const uploadBanner = multer({
+  storage: bannerStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (!file.mimetype.startsWith("image/")) {
+      return cb(new Error("Banner must be an image"));
     }
     cb(null, true);
   },
@@ -309,7 +330,7 @@ async function fetchEventWithAttendees(eventId) {
   }
 
   const [attendees] = await pool.query(
-    `SELECT t.id, t.ticket_code, t.user_email, t.user_name, t.price, t.created_at, s.section, s.row_label, s.seat_number
+    `SELECT t.id, t.ticket_code, t.user_email, t.user_name, t.price, t.created_at, t.status, t.used_at, s.section, s.row_label, s.seat_number
      FROM tickets t
      LEFT JOIN seats s ON t.seat_id = s.id
      WHERE t.event_id = ?
@@ -326,6 +347,8 @@ function buildCsv(attendees) {
     "Email",
     "Ticket Code",
     "Seat",
+    "Status",
+    "Attended",
     "Price",
     "Issued At",
   ];
@@ -337,12 +360,16 @@ function buildCsv(attendees) {
 
   const lines = [headers.map(escape).join(",")];
   for (const attendee of attendees) {
+    const status = attendee.status || "active";
+    const attended = status === "used" || attendee.used_at ? "Yes" : "No";
     lines.push(
       [
         attendee.user_name || "",
         attendee.user_email || "",
         attendee.ticket_code || "",
         formatSeat(attendee),
+        status,
+        attended,
         attendee.price != null ? attendee.price : "",
         toIsoString(attendee.created_at),
       ]
@@ -362,16 +389,22 @@ async function buildExcel(attendees) {
     { header: "Email", key: "email", width: 35 },
     { header: "Ticket Code", key: "ticketCode", width: 25 },
     { header: "Seat", key: "seat", width: 30 },
+    { header: "Status", key: "status", width: 14 },
+    { header: "Attended", key: "attended", width: 12 },
     { header: "Price", key: "price", width: 10 },
     { header: "Issued At", key: "issuedAt", width: 25 },
   ];
 
   for (const attendee of attendees) {
+    const status = attendee.status || "active";
+    const attended = status === "used" || attendee.used_at ? "Yes" : "No";
     sheet.addRow({
       name: attendee.user_name || "",
       email: attendee.user_email || "",
       ticketCode: attendee.ticket_code || "",
       seat: formatSeat(attendee),
+      status,
+      attended,
       price: attendee.price != null ? attendee.price : "",
       issuedAt: toIsoString(attendee.created_at),
     });
@@ -408,12 +441,15 @@ function buildPdf(event, attendees, res, filename) {
   }
 
   attendees.forEach((attendee, idx) => {
+    const status = attendee.status || "active";
+    const attended = status === "used" || attendee.used_at ? "Yes" : "No";
     const nameSuffix = attendee.user_name ? ` (${attendee.user_name})` : "";
     doc
       .fontSize(12)
       .text(`${idx + 1}. ${attendee.user_email || ""}${nameSuffix}`);
     doc.fontSize(11).text(`   Ticket: ${attendee.ticket_code || ""}`);
     doc.text(`   Seat: ${formatSeat(attendee)}`);
+    doc.text(`   Status: ${status} | Attended: ${attended}`);
     doc.text(
       `   Price: ${
         attendee.price != null && attendee.price !== "" ? attendee.price : "N/A"
@@ -558,6 +594,69 @@ async function updateEvent(req, res, next) {
 router.get("/events", listEvents);
 router.post("/events", upload.single("poster"), createEvent);
 router.put("/events/:id", upload.single("poster"), updateEvent);
+router.delete("/events/:id", async (req, res, next) => {
+  const eventId = Number(req.params.id);
+  if (!eventId) {
+    return res.status(400).json({ error: "Invalid event id" });
+  }
+
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    const [[event]] = await connection.query(
+      "SELECT id, name, poster_url FROM events WHERE id = ? FOR UPDATE",
+      [eventId]
+    );
+
+    if (!event) {
+      await connection.rollback();
+      return res.status(404).json({ error: "Event not found" });
+    }
+
+    const [ticketCountRows] = await connection.query(
+      "SELECT COUNT(*) AS cnt FROM tickets WHERE event_id = ?",
+      [eventId]
+    );
+    const ticketsToDelete = Number(ticketCountRows?.[0]?.cnt || 0);
+
+    if (ticketsToDelete > 0) {
+      await connection.query("DELETE FROM tickets WHERE event_id = ?", [
+        eventId,
+      ]);
+    }
+
+    // Seats have ON DELETE CASCADE, so deleting event will remove seats automatically
+    await connection.query("DELETE FROM events WHERE id = ?", [eventId]);
+
+    await connection.commit();
+
+    // Best-effort poster cleanup after commit
+    if (event.poster_url) {
+      try {
+        const absPoster = path.join(
+          __dirname,
+          "..",
+          String(event.poster_url).replace(/^\/+/, "")
+        );
+        fs.unlink(absPoster, () => {});
+      } catch (_) {}
+    }
+
+    res.json({
+      deleted: true,
+      eventId,
+      ticketsDeleted: ticketsToDelete,
+    });
+  } catch (err) {
+    try {
+      await connection.rollback();
+    } catch (_) {}
+    next(err);
+  } finally {
+    connection.release();
+  }
+});
 
 router.get("/analytics/overview", async (_req, res, next) => {
   try {
@@ -911,137 +1010,193 @@ async function createTicketWithQr(connection, { eventId, seat, email, name }) {
   return { ticketCode, qrDataUrl };
 }
 
-router.post("/emails/bulk", async (req, res, next) => {
-  const { list, subject, bodyTemplate, event_id } = req.body;
+router.post(
+  "/emails/bulk",
+  uploadBanner.single("banner"),
+  async (req, res, next) => {
+    // Support both JSON and multipart/form-data
+    let { list, subject, bodyTemplate, event_id, use_poster } = req.body || {};
+    const bannerFile = req.file || null;
 
-  if (!Array.isArray(list) || list.length === 0) {
-    return res.status(400).json({ error: "list must be a non-empty array" });
-  }
-
-  const recipients = list
-    .map((entry) => normaliseRecipient(entry))
-    .filter(Boolean);
-
-  if (recipients.length === 0) {
-    return res
-      .status(400)
-      .json({ error: "No valid recipient emails were provided" });
-  }
-
-  const eventId = Number(event_id);
-  if (!eventId) {
-    return res.status(400).json({ error: "event_id is required" });
-  }
-
-  const connection = await pool.getConnection();
-  try {
-    await connection.beginTransaction();
-
-    const [[event]] = await connection.query(
-      "SELECT id, name, starts_at, ends_at FROM events WHERE id = ?",
-      [eventId]
-    );
-
-    if (!event) {
-      const err = new Error("Event not found");
-      err.status = 404;
-      throw err;
+    if (typeof list === "string") {
+      try {
+        list = JSON.parse(list);
+      } catch (_) {}
     }
 
-    let queued = 0;
-    const details = [];
-    const template =
-      typeof bodyTemplate === "string" && bodyTemplate.trim()
-        ? bodyTemplate
-        : DEFAULT_EMAIL_TEMPLATE;
-    const subjectTemplate =
-      typeof subject === "string" && subject.trim()
-        ? subject
-        : DEFAULT_SUBJECT_TEMPLATE;
-
-    for (const person of recipients) {
-      const seat = await fetchNextSeat(connection, eventId);
-
-      const { ticketCode, qrDataUrl } = await createTicketWithQr(connection, {
-        eventId,
-        seat,
-        email: person.email,
-        name: person.name,
-      });
-
-      const seatLabel = `Section ${seat.section} Row ${seat.row_label} Seat ${seat.seat_number}`;
-      const qrCid = `qr-${ticketCode}@ccis.dev`;
-
-      const templateData = {
-        name: person.name || "Guest",
-        email: person.email,
-        event: event.name || "",
-        seat: seatLabel,
-        ticket_code: ticketCode,
-        qr_data_url: qrDataUrl,
-        qr_cid: qrCid,
-        event_starts: event.starts_at
-          ? new Date(event.starts_at).toLocaleString()
-          : "",
-      };
-
-      const body = interpolateTemplate(template, {
-        ...templateData,
-        ticket: `${seatLabel}\nTicket Code: ${ticketCode}`,
-      });
-
-      const resolvedSubject = interpolateTemplate(
-        subjectTemplate,
-        templateData
-      );
-
-      const [, base64] = qrDataUrl.split(",");
-      const attachments = [
-        {
-          filename: `${ticketCode}.png`,
-          content: base64,
-          encoding: "base64",
-          contentType: "image/png",
-          cid: qrCid,
-        },
-      ];
-
-      await connection.query(
-        "INSERT INTO email_queue (to_email, to_name, subject, body, attachments, status) VALUES (?, ?, ?, ?, ?, 'pending')",
-        [
-          person.email,
-          person.name || null,
-          resolvedSubject,
-          body,
-          JSON.stringify(attachments),
-        ]
-      );
-
-      queued += 1;
-      details.push({
-        email: person.email,
-        name: person.name || null,
-        seat: seatLabel,
-        ticketCode,
-      });
+    if (!Array.isArray(list) || list.length === 0) {
+      return res.status(400).json({ error: "list must be a non-empty array" });
     }
 
-    await connection.commit();
-    res.json({ queued, details });
-  } catch (err) {
+    const recipients = list
+      .map((entry) => normaliseRecipient(entry))
+      .filter(Boolean);
+
+    if (recipients.length === 0) {
+      return res
+        .status(400)
+        .json({ error: "No valid recipient emails were provided" });
+    }
+
+    const eventId = Number(event_id);
+    if (!eventId) {
+      return res.status(400).json({ error: "event_id is required" });
+    }
+    const shouldUsePoster = String(use_poster).toLowerCase() === "true";
+
+    const connection = await pool.getConnection();
     try {
-      await connection.rollback();
-    } catch (_) {}
+      await connection.beginTransaction();
 
-    if (err.status) {
-      return res.status(err.status).json({ error: err.message });
+      const [[event]] = await connection.query(
+        "SELECT id, name, poster_url, starts_at, ends_at FROM events WHERE id = ?",
+        [eventId]
+      );
+
+      if (!event) {
+        const err = new Error("Event not found");
+        err.status = 404;
+        throw err;
+      }
+
+      let queued = 0;
+      const details = [];
+      const template =
+        typeof bodyTemplate === "string" && bodyTemplate.trim()
+          ? bodyTemplate
+          : DEFAULT_EMAIL_TEMPLATE;
+      const subjectTemplate =
+        typeof subject === "string" && subject.trim()
+          ? subject
+          : DEFAULT_SUBJECT_TEMPLATE;
+
+      // Prepare optional poster/banner attachment once per batch
+      let posterCid = null;
+      let posterAttachment = null;
+      try {
+        if (bannerFile) {
+          posterCid = `banner-${Date.now()}@ccis.dev`;
+          posterAttachment = {
+            filename: bannerFile.originalname || path.basename(bannerFile.path),
+            path: bannerFile.path,
+            cid: posterCid,
+            contentType: bannerFile.mimetype || "image/png",
+          };
+        } else if (shouldUsePoster && event.poster_url) {
+          const absPath = path.join(
+            __dirname,
+            "..",
+            event.poster_url.replace(/^\/+/, "")
+          );
+          posterCid = `poster-${eventId}@ccis.dev`;
+          posterAttachment = {
+            filename: path.basename(absPath),
+            path: absPath,
+            cid: posterCid,
+            contentType: "image/png",
+          };
+        }
+      } catch (_) {
+        posterCid = null;
+        posterAttachment = null;
+      }
+
+      for (const person of recipients) {
+        const seat = await fetchNextSeat(connection, eventId);
+
+        const { ticketCode, qrDataUrl } = await createTicketWithQr(connection, {
+          eventId,
+          seat,
+          email: person.email,
+          name: person.name,
+        });
+
+        const seatLabel = `Section ${seat.section} Row ${seat.row_label} Seat ${seat.seat_number}`;
+        const qrCid = `qr-${ticketCode}@ccis.dev`;
+
+        const templateData = {
+          name: person.name || "Guest",
+          email: person.email,
+          event: event.name || "",
+          seat: seatLabel,
+          ticket_code: ticketCode,
+          qr_data_url: qrDataUrl,
+          qr_cid: qrCid,
+          poster_cid: posterCid || "",
+          poster_url: event.poster_url || "",
+          event_starts: event.starts_at
+            ? new Date(event.starts_at).toLocaleString()
+            : "",
+        };
+
+        let body = interpolateTemplate(template, {
+          ...templateData,
+          ticket: `${seatLabel}\nTicket Code: ${ticketCode}`,
+        });
+
+        // Auto-insert the poster/banner at top if available and not explicitly referenced
+        if (posterCid) {
+          const cidRef = `cid:${posterCid}`;
+          if (!body.includes(cidRef)) {
+            const bannerBlock = `\n<div style="margin:0 0 16px 0;">\n  <img src="cid:${posterCid}" alt="Event banner" style="max-width:100%;height:auto;border-radius:12px;display:block;" />\n</div>\n`;
+            body = bannerBlock + body;
+          }
+        }
+
+        const resolvedSubject = interpolateTemplate(
+          subjectTemplate,
+          templateData
+        );
+
+        const [, base64] = qrDataUrl.split(",");
+        const attachments = [
+          {
+            filename: `${ticketCode}.png`,
+            content: base64,
+            encoding: "base64",
+            contentType: "image/png",
+            cid: qrCid,
+          },
+        ];
+        if (posterAttachment) attachments.push(posterAttachment);
+
+        await connection.query(
+          "INSERT INTO email_queue (to_email, to_name, subject, body, attachments, status) VALUES (?, ?, ?, ?, ?, 'pending')",
+          [
+            person.email,
+            person.name || null,
+            resolvedSubject,
+            body,
+            JSON.stringify(attachments),
+          ]
+        );
+
+        queued += 1;
+        details.push({
+          email: person.email,
+          name: person.name || null,
+          seat: seatLabel,
+          ticketCode,
+        });
+      }
+
+      await connection.commit();
+      res.json({ queued, details });
+    } catch (err) {
+      try {
+        await connection.rollback();
+      } catch (_) {}
+
+      if (err.status) {
+        return res.status(err.status).json({ error: err.message });
+      }
+
+      next(err);
+    } finally {
+      connection.release();
     }
-
-    next(err);
-  } finally {
-    connection.release();
   }
-});
+);
 
 router.post("/emails/send-now", async (req, res, next) => {
   const limit = Math.min(
