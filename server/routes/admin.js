@@ -883,7 +883,7 @@ router.post("/tickets/create", async (req, res, next) => {
       .json({ error: "event_id, seat_id, and user_email are required" });
   }
 
-  const ticketCode = `CCIS-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+  const ticketCode = `MMU-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 
   try {
     const connection = await pool.getConnection();
@@ -979,7 +979,7 @@ async function fetchNextSeat(connection, eventId) {
 }
 
 async function createTicketWithQr(connection, { eventId, seat, email, name }) {
-  const ticketCode = `CCIS-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+  const ticketCode = `MMU-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 
   const [ticketResult] = await connection.query(
     "INSERT INTO tickets (ticket_code, user_email, user_name, event_id, seat_id, price) VALUES (?, ?, ?, ?, ?, ?)",
