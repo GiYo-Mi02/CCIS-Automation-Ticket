@@ -86,7 +86,7 @@ router.post("/verify-qr", async (req, res, next) => {
 
     const usedAt = new Date();
     await pool.query(
-      'UPDATE tickets SET status = "used", used_at = ? WHERE id = ?',
+      "UPDATE tickets SET status = 'used', used_at = ? WHERE id = ?",
       [usedAt, ticketId]
     );
 

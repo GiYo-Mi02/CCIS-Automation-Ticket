@@ -18,9 +18,16 @@ try {
 
 const pool = require("../lib/db");
 
+function quoteIdentifier(value) {
+  return `"${String(value).replace(/"/g, '""')}"`;
+}
+
 async function tableExists(connection, tableName) {
   const [rows] = await connection.query(
-    `SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`,
+    `SELECT table_name
+       FROM information_schema.tables
+      WHERE table_schema = current_schema()
+        AND table_name = ?`,
     [tableName]
   );
   return rows.length > 0;
@@ -28,18 +35,22 @@ async function tableExists(connection, tableName) {
 
 async function columnExists(connection, tableName, columnName) {
   const [rows] = await connection.query(
-    `SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
+    `SELECT column_name
+       FROM information_schema.columns
+      WHERE table_schema = current_schema()
+        AND table_name = ?
+        AND column_name = ?`,
     [tableName, columnName]
   );
   return rows.length > 0;
 }
 
-async function ensureColumn(connection, table, column, ddl) {
+async function ensureColumn(connection, table, column, definitionSql) {
   const hasTable = await tableExists(connection, table);
   if (!hasTable) {
     console.log(
       `- Skipping: table ${table} does not exist in database ${
-        process.env.DB_NAME || "current DB"
+        process.env.SUPABASE_DB_NAME || "current DB"
       }`
     );
     return { changed: false, message: `Table ${table} missing` };
@@ -52,7 +63,11 @@ async function ensureColumn(connection, table, column, ddl) {
   }
 
   console.log(`- Adding ${table}.${column} ...`);
-  await connection.query(`ALTER TABLE \`${table}\` ${ddl}`);
+  await connection.query(
+    `ALTER TABLE ${quoteIdentifier(table)} ADD COLUMN ${quoteIdentifier(
+      column
+    )} ${definitionSql}`
+  );
   console.log(`  Added ${table}.${column}`);
   return { changed: true, message: `${table}.${column} added` };
 }
@@ -69,7 +84,7 @@ async function run() {
         connection,
         "tickets",
         "user_name",
-        "ADD COLUMN `user_name` VARCHAR(255) NULL AFTER `user_email`"
+        "VARCHAR(255)"
       )
     );
 
@@ -79,7 +94,7 @@ async function run() {
         connection,
         "email_queue",
         "to_name",
-        "ADD COLUMN `to_name` VARCHAR(255) NULL AFTER `to_email`"
+        "VARCHAR(255)"
       )
     );
 

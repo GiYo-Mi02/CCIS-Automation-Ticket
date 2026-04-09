@@ -137,20 +137,20 @@ async function buildAnalyticsSnapshot() {
 
   const [checkinBuckets] = await pool.query(
     `SELECT event_id,
-            DATE_FORMAT(used_at, '%Y-%m-%d %H:%i:00') AS bucket,
+            TO_CHAR(date_trunc('minute', used_at), 'YYYY-MM-DD HH24:MI:00') AS bucket,
             COUNT(*) AS count
        FROM tickets
       WHERE status = 'used'
-        AND used_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR)
-      GROUP BY event_id, bucket
-      ORDER BY bucket ASC`
+        AND used_at >= NOW() - INTERVAL '1 hour'
+      GROUP BY event_id, date_trunc('minute', used_at)
+      ORDER BY date_trunc('minute', used_at) ASC`
   );
 
   const [checkinsLastFive] = await pool.query(
     `SELECT event_id, COUNT(*) AS count
        FROM tickets
       WHERE status = 'used'
-        AND used_at >= DATE_SUB(NOW(), INTERVAL 5 MINUTE)
+        AND used_at >= NOW() - INTERVAL '5 minutes'
       GROUP BY event_id`
   );
 
@@ -809,7 +809,7 @@ router.post("/events/:id/auto-assign", async (req, res, next) => {
 
   try {
     const [rows] = await pool.query(
-      'SELECT * FROM seats WHERE event_id = ? AND status = "available" ORDER BY row_idx, col_idx',
+      "SELECT * FROM seats WHERE event_id = ? AND status = 'available' ORDER BY row_idx, col_idx",
       [eventId]
     );
 
@@ -853,7 +853,7 @@ router.post("/events/:id/auto-assign", async (req, res, next) => {
     try {
       await connection.beginTransaction();
       const [updateResult] = await connection.query(
-        'UPDATE seats SET status = "reserved", reserved_token = ?, reserved_until = ? WHERE id IN (?) AND status = "available"',
+        "UPDATE seats SET status = 'reserved', reserved_token = ?, reserved_until = ? WHERE id IN (?) AND status = 'available'",
         [token, reservedUntil, seatIds]
       );
 
@@ -883,7 +883,7 @@ router.post("/tickets/create", async (req, res, next) => {
       .json({ error: "event_id, seat_id, and user_email are required" });
   }
 
-  const ticketCode = `MMU-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+  const ticketCode = `AITECH-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 
   try {
     const connection = await pool.getConnection();
@@ -903,7 +903,7 @@ router.post("/tickets/create", async (req, res, next) => {
         ]
       );
 
-      await connection.query('UPDATE seats SET status = "sold" WHERE id = ?', [
+      await connection.query("UPDATE seats SET status = 'sold' WHERE id = ?", [
         seat_id,
       ]);
 
@@ -967,7 +967,7 @@ function interpolateTemplate(template, data) {
 
 async function fetchNextSeat(connection, eventId) {
   const [rows] = await connection.query(
-    'SELECT id, section, row_label, seat_number, row_idx, col_idx FROM seats WHERE event_id = ? AND status = "available" ORDER BY row_idx, col_idx LIMIT 1 FOR UPDATE',
+    "SELECT id, section, row_label, seat_number, row_idx, col_idx FROM seats WHERE event_id = ? AND status = 'available' ORDER BY row_idx, col_idx LIMIT 1 FOR UPDATE",
     [eventId]
   );
   if (rows.length === 0) {
@@ -986,7 +986,7 @@ async function createTicketWithQr(connection, { eventId, seat, email, name }) {
     [ticketCode, email, name || null, eventId, seat.id, 0]
   );
 
-  await connection.query('UPDATE seats SET status = "sold" WHERE id = ?', [
+  await connection.query("UPDATE seats SET status = 'sold' WHERE id = ?", [
     seat.id,
   ]);
 

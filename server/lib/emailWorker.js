@@ -38,7 +38,7 @@ function parseAttachments(raw) {
 
 async function processPendingEmails(limit = 400) {
   const [rows] = await pool.query(
-    'SELECT * FROM email_queue WHERE status = "pending" ORDER BY created_at LIMIT ?',
+    "SELECT * FROM email_queue WHERE status = 'pending' ORDER BY created_at LIMIT ?",
     [limit]
   );
 
@@ -54,7 +54,7 @@ async function processPendingEmails(limit = 400) {
     try {
       await connection.beginTransaction();
       const [updateResult] = await connection.query(
-        'UPDATE email_queue SET status = "sending", tries = tries + 1, last_attempt = ? WHERE id = ? AND status = "pending"',
+        "UPDATE email_queue SET status = 'sending', tries = tries + 1, last_attempt = ? WHERE id = ? AND status = 'pending'",
         [new Date(), mail.id]
       );
 
@@ -76,7 +76,7 @@ async function processPendingEmails(limit = 400) {
       });
 
       await connection.query(
-        'UPDATE email_queue SET status = "sent" WHERE id = ?',
+        "UPDATE email_queue SET status = 'sent' WHERE id = ?",
         [mail.id]
       );
       await connection.commit();
@@ -86,7 +86,7 @@ async function processPendingEmails(limit = 400) {
       failed += 1;
       try {
         await connection.query(
-          'UPDATE email_queue SET status = "failed" WHERE id = ?',
+          "UPDATE email_queue SET status = 'failed' WHERE id = ?",
           [mail.id]
         );
         await connection.commit();
