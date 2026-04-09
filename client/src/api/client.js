@@ -1,4 +1,11 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
+const configuredApiBase = (import.meta.env.VITE_API_BASE_URL || "").trim();
+const API_BASE = configuredApiBase || (import.meta.env.DEV ? "http://localhost:4000" : "");
+
+if (!configuredApiBase && !import.meta.env.DEV) {
+  console.warn(
+    "VITE_API_BASE_URL is not set. Production requests will use same-origin paths."
+  );
+}
 
 function buildFetchOptions(options = {}) {
   const fetchOptions = { ...options };
@@ -21,8 +28,9 @@ function buildFetchOptions(options = {}) {
 }
 
 async function apiFetch(path, options = {}) {
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
   const response = await fetch(
-    `${API_BASE}${path}`,
+    `${API_BASE}${normalizedPath}`,
     buildFetchOptions(options)
   );
 
