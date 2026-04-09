@@ -8,10 +8,10 @@ import { useAnalytics } from '../contexts/AnalyticsContext.jsx';
 const DEFAULT_EVENT_ID = Number(import.meta.env.VITE_DEFAULT_EVENT_ID || 1);
 
 const statusColors = {
-  available: 'bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400',
-  reserved: 'bg-gradient-to-r from-amber-400 via-orange-400 to-rose-400',
-  sold: 'bg-gradient-to-r from-slate-500 via-slate-600 to-slate-800',
-  blocked: 'bg-gradient-to-r from-rose-500 via-red-500 to-amber-500'
+  available: 'bg-green-100 text-green-800',
+  reserved: 'bg-yellow-100 text-yellow-800',
+  sold: 'bg-blue-100 text-blue-800',
+  blocked: 'bg-red-100 text-red-800'
 };
 
 function DashboardPage() {
@@ -92,19 +92,19 @@ function DashboardPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-8">
-      <section className="glass-panel flex flex-col gap-6 px-6 py-6">
+      <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col gap-6">
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div className="space-y-2">
-            <p className="glass-section-label">Live command center</p>
-            <h2 className="page-heading">Event administration</h2>
-            <p className="page-subheading">
+            <p className="text-sm font-medium text-gray-500">Live command center</p>
+            <h2 className="text-2xl font-semibold text-gray-900">Event administration</h2>
+            <p className="text-sm text-gray-500 mt-1">
               Track seat inventory, check-ins, and engagement in real time for event #{eventId}.
             </p>
           </div>
           <div className="flex flex-col gap-4 md:w-auto md:flex-row md:items-end">
             {analyticsEvents.length > 0 && (
               <div className="flex flex-col gap-2">
-                <label className="input-label" htmlFor="eventSelect">
+                <label className="text-sm font-medium text-gray-700" htmlFor="eventSelect">
                   Select event
                 </label>
                 <select
@@ -117,7 +117,7 @@ function DashboardPage() {
                       setPendingEventId(String(nextId));
                     }
                   }}
-                  className="input-field min-w-[16rem] appearance-none"
+                  className="bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 px-3 py-2 min-w-[16rem]"
                 >
                   {analyticsEvents.map((event) => (
                     <option key={event.id} value={event.id}>
@@ -130,7 +130,7 @@ function DashboardPage() {
             )}
             <form onSubmit={handleLoadEvent} className="flex items-end gap-3">
               <div className="flex flex-col gap-2">
-                <label className="input-label" htmlFor="eventId">
+                <label className="text-sm font-medium text-gray-700" htmlFor="eventId">
                   Event ID
                 </label>
                 <input
@@ -139,36 +139,36 @@ function DashboardPage() {
                   min="1"
                   value={pendingEventId}
                   onChange={handleEventChange}
-                  className="input-field w-24"
+                  className="bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 px-3 py-2 w-24"
                 />
               </div>
-              <button type="submit" className="primary-button whitespace-nowrap">
+              <button type="submit" className="bg-gray-900 text-white hover:bg-gray-800 px-4 py-2 rounded-lg transition-colors whitespace-nowrap font-medium shadow-sm">
                 Load
               </button>
             </form>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-3 text-xs text-slate-200/70">
+        <div className="flex flex-wrap items-center gap-3 text-xs">
           <span
-            className={`inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-1 font-semibold uppercase tracking-[0.3em] ${
-              isConnected ? 'bg-emerald-500/20 text-emerald-200' : 'bg-white/5 text-slate-300'
+            className={`inline-flex items-center gap-2 rounded-full px-3 py-1 font-medium ${
+              isConnected ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
             }`}
           >
-            <span className={`h-2 w-2 rounded-full ${isConnected ? 'bg-emerald-300 animate-pulse' : 'bg-slate-400'}`} />
-            {isConnected ? 'stream live' : 'stream paused'}
+            <span className={`h-2 w-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
+            {isConnected ? 'Stream Live' : 'Stream Paused'}
           </span>
-          <span className="rounded-full border border-white/10 px-3 py-1 tracking-[0.3em]">
-            updated {lastUpdated ? new Date(lastUpdated).toLocaleTimeString() : '—'}
+          <span className="rounded-full bg-gray-100 text-gray-600 px-3 py-1 font-medium">
+            Updated {lastUpdated ? new Date(lastUpdated).toLocaleTimeString() : '—'}
           </span>
-          {analyticsLoading && <span className="rounded-full border border-white/10 px-3 py-1">Syncing analytics…</span>}
+          {analyticsLoading && <span className="rounded-full bg-blue-50 text-blue-600 px-3 py-1 font-medium">Syncing analytics…</span>}
         </div>
       </section>
 
-      <section className="grid gap-5 md:grid-cols-5">
+      <section className="grid gap-5 grid-cols-2 md:grid-cols-5">
         <StatCard
           label="Capacity"
           value={eventAnalytics?.capacity ?? '—'}
-          accent="bg-gradient-to-r from-sky-500 via-indigo-500 to-purple-500"
+          accent="bg-gray-100 text-gray-900"
         />
         <StatCard label="Available" value={seatInsights.available ?? 0} accent={statusColors.available} />
         <StatCard label="Reserved" value={seatInsights.reserved ?? 0} accent={statusColors.reserved} />
@@ -176,117 +176,118 @@ function DashboardPage() {
         <StatCard
           label="Occupancy"
           value={occupancyPercentage != null ? `${occupancyPercentage}%` : '—'}
-          accent="bg-gradient-to-r from-emerald-400 via-green-500 to-lime-500"
+          accent="bg-primary-50 text-primary-700"
         />
       </section>
 
-       <section className="grid gap-6 xl:grid-cols-[10fr]">
-        <div className="glass-panel px-4 py-6">
-          <SeatMap seats={seats} isLoading={loading} />
-        </div>
+      <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 overflow-hidden">
+        <SeatMap seats={seats} isLoading={loading} />
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-3">
-        <div className="glass-card p-6">
-          <p className="glass-section-label">System load</p>
-          <h3 className="text-lg font-semibold text-white">Email queue overview</h3>
-          <ul className="mt-4 space-y-2 text-sm text-slate-200/85">
-            <li className="flex items-center justify-between">
-              <span>Pending</span>
-              <span>{snapshot?.queue?.pending ?? 0}</span>
+      <section className="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <p className="text-sm font-medium text-gray-500">System load</p>
+          <h3 className="text-lg font-semibold text-gray-900 mt-1">Email queue overview</h3>
+          <ul className="mt-6 space-y-3 text-sm text-gray-600">
+            <li className="flex items-center justify-between py-1 border-b border-gray-50">
+              <span className="font-medium">Pending</span>
+              <span className="text-gray-900">{snapshot?.queue?.pending ?? 0}</span>
             </li>
-            <li className="flex items-center justify-between">
-              <span>Sending</span>
-              <span>{snapshot?.queue?.sending ?? 0}</span>
+            <li className="flex items-center justify-between py-1 border-b border-gray-50">
+              <span className="font-medium">Sending</span>
+              <span className="text-gray-900">{snapshot?.queue?.sending ?? 0}</span>
             </li>
-            <li className="flex items-center justify-between">
-              <span>Sent (today)</span>
-              <span>{snapshot?.queue?.sent ?? 0}</span>
+            <li className="flex items-center justify-between py-1 border-b border-gray-50">
+              <span className="font-medium">Sent (today)</span>
+              <span className="text-gray-900">{snapshot?.queue?.sent ?? 0}</span>
             </li>
-            <li className="flex items-center justify-between">
-              <span>Failed</span>
-              <span>{snapshot?.queue?.failed ?? 0}</span>
+            <li className="flex items-center justify-between py-1">
+              <span className="font-medium">Failed</span>
+              <span className="text-gray-900">{snapshot?.queue?.failed ?? 0}</span>
             </li>
           </ul>
         </div>
-        <div className="glass-card p-6">
-          <p className="glass-section-label">Global metrics</p>
-          <h3 className="text-lg font-semibold text-white">Portfolio overview</h3>
-          <div className="mt-4 space-y-3 text-sm text-slate-200/85">
-            <div className="flex items-center justify-between">
-              <span>Events live</span>
-              <span>{snapshot?.totals?.events ?? 0}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span>Tickets checked-in (hour)</span>
-              <span>{snapshot?.totals?.checkIns?.lastHour ?? 0}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span>Tickets active</span>
-              <span>{snapshot?.totals?.tickets?.active ?? 0}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span>Total revenue</span>
-              <span>
+        
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <p className="text-sm font-medium text-gray-500">Global metrics</p>
+          <h3 className="text-lg font-semibold text-gray-900 mt-1">Portfolio overview</h3>
+          <ul className="mt-6 space-y-3 text-sm text-gray-600">
+            <li className="flex items-center justify-between py-1 border-b border-gray-50">
+              <span className="font-medium">Events live</span>
+              <span className="text-gray-900">{snapshot?.totals?.events ?? 0}</span>
+            </li>
+            <li className="flex items-center justify-between py-1 border-b border-gray-50">
+              <span className="font-medium">Tickets checked-in (hour)</span>
+              <span className="text-gray-900">{snapshot?.totals?.checkIns?.lastHour ?? 0}</span>
+            </li>
+            <li className="flex items-center justify-between py-1 border-b border-gray-50">
+              <span className="font-medium">Tickets active</span>
+              <span className="text-gray-900">{snapshot?.totals?.tickets?.active ?? 0}</span>
+            </li>
+            <li className="flex items-center justify-between py-1">
+              <span className="font-medium">Total revenue</span>
+              <span className="text-gray-900 font-semibold">
                 ₱
                 {(snapshot?.totals?.revenue ?? 0).toLocaleString(undefined, {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2
                 })}
               </span>
-            </div>
-          </div>
+            </li>
+          </ul>
         </div>
-        <div className="glass-card p-6">
-          <p className="glass-section-label">High-occupancy alerts</p>
-          <h3 className="text-lg font-semibold text-white">Events nearing capacity</h3>
-          <div className="mt-4 space-y-4">
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col">
+          <p className="text-sm font-medium text-gray-500">High-occupancy alerts</p>
+          <h3 className="text-lg font-semibold text-gray-900 mt-1">Events nearing capacity</h3>
+          <div className="mt-6 space-y-4 w-full">
             {analyticsEvents
               .slice()
               .sort((a, b) => (b.occupancy ?? 0) - (a.occupancy ?? 0))
               .slice(0, 3)
               .map((event) => (
-                <div key={event.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="flex items-center justify-between text-sm text-slate-200/90">
-                    <span className="font-semibold text-white">{event.name}</span>
-                    <span className="text-xs uppercase tracking-[0.3em] text-slate-400">
+                <div key={event.id} className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-semibold text-gray-900 truncate pr-2">{event.name}</span>
+                    <span className="text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-md px-2 py-0.5 shrink-0">
                       {event.occupancy != null ? `${Math.round(event.occupancy * 100)}%` : '—'}
                     </span>
                   </div>
-                  <div className="mt-2 flex items-center justify-between text-xs text-slate-400">
-                    <span>Available: {event.seats?.available ?? 0}</span>
-                    <span>Sold: {event.seats?.sold ?? 0}</span>
-                    <span>Reserved: {event.seats?.reserved ?? 0}</span>
+                  <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
+                    <span>Avail: <span className="font-medium text-gray-700">{event.seats?.available ?? 0}</span></span>
+                    <span>Sold: <span className="font-medium text-gray-700">{event.seats?.sold ?? 0}</span></span>
+                    <span>Res: <span className="font-medium text-gray-700">{event.seats?.reserved ?? 0}</span></span>
                   </div>
                 </div>
               ))}
             {analyticsEvents.length === 0 && (
-              <p className="text-sm text-slate-300/80">No events found.</p>
+              <p className="text-sm text-gray-500">No events found.</p>
             )}
           </div>
         </div>
-        <div className="glass-card flex h-full flex-col justify-between gap-6 p-6">
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col justify-between">
           <div className="space-y-2">
-            <p className="glass-section-label">Realtime insights</p>
-            <h3 className="text-lg font-semibold text-white">Check-in velocity</h3>
-            <p className="text-sm text-slate-200/80">
+            <p className="text-sm font-medium text-gray-500">Realtime insights</p>
+            <h3 className="text-lg font-semibold text-gray-900">Check-in velocity</h3>
+            <p className="text-sm text-gray-500">
               Live check-ins for the last hour (5-minute cadence). Use this to anticipate entrance staffing.
             </p>
           </div>
-          <div className="flex flex-col gap-4">
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="grid grid-cols-2 gap-3 text-sm text-slate-200/80">
+          <div className="flex flex-col gap-4 mt-6">
+            <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+              <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Last 5 minutes</p>
-                  <p className="mt-1 text-2xl font-semibold text-white">{checkInsWindow.lastFiveMinutes ?? 0}</p>
+                  <p className="text-xs font-medium text-gray-500 uppercase">Last 5 min</p>
+                  <p className="mt-1 text-2xl font-semibold text-gray-900">{checkInsWindow.lastFiveMinutes ?? 0}</p>
                 </div>
                 <div>
-                  <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Last hour</p>
-                  <p className="mt-1 text-2xl font-semibold text-white">{checkInsWindow.lastHour ?? 0}</p>
+                  <p className="text-xs font-medium text-gray-500 uppercase">Last hour</p>
+                  <p className="mt-1 text-2xl font-semibold text-gray-900">{checkInsWindow.lastHour ?? 0}</p>
                 </div>
               </div>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+            <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
               <TrendSparkline data={checkInsWindow.history ?? []} />
             </div>
           </div>

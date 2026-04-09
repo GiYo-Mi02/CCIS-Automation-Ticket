@@ -4,12 +4,19 @@ export default {
   theme: {
     extend: {
       colors: {
-        brand: {
-          DEFAULT: "#1f4b99",
-          light: "#3f6ccb",
-          dark: "#163a77",
+        // Muted primary color
+        primary: {
+          50: '#eff6ff',
+          100: '#dbeafe',
+          500: '#3b82f6',
+          600: '#2563eb',
+          700: '#1d4ed8',
+          900: '#1e3a8a',
         },
       },
+      fontFamily: {
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+      }
     },
   },
   plugins: [],

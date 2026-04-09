@@ -7,19 +7,18 @@ const STATUS_LEGEND = [
   { key: 'blocked', label: 'Blocked' }
 ];
 
-const STATUS_OVERLAY_CLASSES = {
-  available: 'shadow-[0_0_0_1px_rgba(255,255,255,0.35)]',
-  reserved:
-    'shadow-[0_0_0_1px_rgba(255,255,255,0.28)] ring-2 ring-amber-300/80 ring-offset-[1px] ring-offset-slate-950/80',
-  sold: 'bg-slate-900/90 text-slate-200 shadow-[0_0_0_1px_rgba(15,23,42,0.65)]',
-  blocked: 'bg-slate-700/85 text-slate-400 shadow-inner shadow-black/40'
+const STATUS_LEGEND_STYLES = {
+  available: 'bg-white border border-gray-200',
+  reserved: 'bg-yellow-100 border border-yellow-300',
+  sold: 'bg-blue-600 border border-blue-600',
+  blocked: 'bg-gray-100 border border-gray-200'
 };
 
-const STATUS_LEGEND_STYLES = {
-  available: 'bg-slate-200/80 shadow-[0_0_0_1px_rgba(255,255,255,0.4)]',
-  reserved: 'bg-slate-200/80 ring-2 ring-amber-300/70 shadow-[0_0_0_1px_rgba(255,255,255,0.3)]',
-  sold: 'bg-slate-800/80 shadow-[0_0_0_1px_rgba(15,23,42,0.6)]',
-  blocked: 'bg-slate-600/80 shadow-inner shadow-black/40'
+const SEAT_CLASSES = {
+  available: 'bg-white border-2 border-gray-200 text-gray-700 hover:border-gray-400 hover:bg-gray-50',
+  reserved: 'bg-yellow-100 border-2 border-yellow-300 text-yellow-800 hover:bg-yellow-200',
+  sold: 'bg-blue-600 border-2 border-blue-600 text-white cursor-default',
+  blocked: 'bg-gray-100 border-2 border-gray-200 text-gray-400 cursor-not-allowed'
 };
 
 const GROUP_TITLES = {
@@ -49,93 +48,19 @@ const SLICE_CONFIG = {
   }
 };
 
-const SLICE_THEMES = {
-  lowerBalcony: [
-    {
-      panel: 'border border-rose-400/35 bg-gradient-to-br from-pink-500/20 via-rose-500/15 to-orange-400/20',
-      badge: 'bg-amber-200/80 text-slate-900',
-      seatBase: 'bg-gradient-to-br from-pink-500 to-orange-400',
-      seatText: 'text-slate-900',
-      seatBorder: 'shadow-[0_0_0_1px_rgba(255,255,255,0.4)]'
-    },
-    {
-      panel: 'border border-fuchsia-400/35 bg-gradient-to-br from-fuchsia-500/20 via-rose-500/15 to-pink-400/20',
-      badge: 'bg-rose-200/80 text-white',
-      seatBase: 'bg-gradient-to-br from-rose-500 to-fuchsia-500',
-      seatText: 'text-white',
-      seatBorder: 'shadow-[0_0_0_1px_rgba(255,255,255,0.35)]'
-    }
-  ],
-  orchestra: [
-    {
-      panel: 'border border-violet-400/35 bg-gradient-to-br from-violet-600/20 via-purple-600/15 to-indigo-500/20',
-      badge: 'bg-violet-200/80 text-slate-900',
-      seatBase: 'bg-gradient-to-br from-violet-500 to-indigo-500',
-      seatText: 'text-white',
-      seatBorder: 'shadow-[0_0_0_1px_rgba(200,200,255,0.35)]'
-    },
-    {
-      panel: 'border border-indigo-400/35 bg-gradient-to-br from-indigo-500/20 via-sky-500/12 to-blue-500/20',
-      badge: 'bg-sky-200/80 text-slate-900',
-      seatBase: 'bg-gradient-to-br from-indigo-500 to-sky-500',
-      seatText: 'text-white',
-      seatBorder: 'shadow-[0_0_0_1px_rgba(190,210,255,0.32)]'
-    },
-    {
-      panel: 'border border-sky-400/35 bg-gradient-to-br from-sky-500/20 via-blue-500/15 to-violet-500/20',
-      badge: 'bg-sky-200/75 text-slate-900',
-      seatBase: 'bg-gradient-to-br from-sky-500 to-violet-500',
-      seatText: 'text-white',
-      seatBorder: 'shadow-[0_0_0_1px_rgba(180,220,255,0.3)]'
-    },
-    {
-      panel: 'border border-blue-400/35 bg-gradient-to-br from-blue-500/20 via-indigo-500/15 to-slate-500/25',
-      badge: 'bg-blue-200/80 text-slate-900',
-      seatBase: 'bg-gradient-to-br from-blue-500 to-indigo-600',
-      seatText: 'text-white',
-      seatBorder: 'shadow-[0_0_0_1px_rgba(170,200,255,0.32)]'
-    }
-  ],
-  lodges: [
-    {
-      panel: 'border border-cyan-400/35 bg-gradient-to-br from-cyan-500/22 via-blue-500/15 to-sky-500/20',
-      badge: 'bg-cyan-200/80 text-slate-900',
-      seatBase: 'bg-gradient-to-br from-cyan-500 to-blue-500',
-      seatText: 'text-white',
-      seatBorder: 'shadow-[0_0_0_1px_rgba(180,230,245,0.32)]'
-    },
-    {
-      panel: 'border border-teal-400/35 bg-gradient-to-br from-teal-500/22 via-emerald-500/15 to-cyan-500/18',
-      badge: 'bg-teal-200/80 text-slate-900',
-      seatBase: 'bg-gradient-to-br from-teal-500 to-cyan-500',
-      seatText: 'text-white',
-      seatBorder: 'shadow-[0_0_0_1px_rgba(170,235,225,0.3)]'
-    }
-  ],
-  upperBalcony: [
-    {
-      panel: 'border border-amber-400/35 bg-gradient-to-br from-amber-500/22 via-orange-500/15 to-rose-400/20',
-      badge: 'bg-amber-200/85 text-slate-900',
-      seatBase: 'bg-gradient-to-br from-amber-500 to-rose-500',
-      seatText: 'text-slate-900',
-      seatBorder: 'shadow-[0_0_0_1px_rgba(255,240,200,0.4)]'
-    },
-    {
-      panel: 'border border-orange-400/35 bg-gradient-to-br from-orange-500/22 via-rose-500/15 to-pink-500/20',
-      badge: 'bg-orange-200/85 text-slate-900',
-      seatBase: 'bg-gradient-to-br from-orange-500 to-pink-500',
-      seatText: 'text-slate-900',
-      seatBorder: 'shadow-[0_0_0_1px_rgba(255,225,190,0.38)]'
-    }
-  ]
-};
+function getGridColumnsClass(length) {
+  if (length === 1) return 'md:grid-cols-1';
+  if (length === 2) return 'md:grid-cols-2';
+  if (length === 3) return 'md:grid-cols-3';
+  return 'md:grid-cols-4';
+}
 
 function SeatMap({ seats, isLoading }) {
   const venueLayout = useMemo(() => buildVenueLayout(seats), [seats]);
 
   if (isLoading) {
     return (
-      <div className="glass-card flex h-64 items-center justify-center border border-dashed border-white/15 text-sm text-slate-200/85">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 flex h-64 items-center justify-center text-sm font-medium text-gray-500">
         Loading seat map…
       </div>
     );
@@ -143,51 +68,51 @@ function SeatMap({ seats, isLoading }) {
 
   if (!venueLayout.totalSeats) {
     return (
-      <div className="glass-card flex h-64 items-center justify-center border border-dashed border-white/15 text-sm text-slate-200/85">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 flex h-64 items-center justify-center text-sm font-medium text-gray-500">
         No seats found for this event.
       </div>
     );
   }
 
   return (
-    <div className="glass-panel relative overflow-hidden p-6 text-slate-100">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden p-6 md:p-8 text-gray-900">
+      <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h3 className="text-lg font-semibold tracking-wide text-white">Seat Map Overview</h3>
-          <p className="text-xs uppercase tracking-[0.35em] text-slate-400">Venue layout</p>
+          <h3 className="text-xl font-semibold text-gray-900">Seat Map Overview</h3>
+          <p className="text-sm font-medium text-gray-500 mt-1">Venue layout</p>
         </div>
-        <div className="flex flex-wrap items-center gap-3 text-xs text-slate-200/85">
+        <div className="flex flex-wrap items-center gap-4 text-sm font-medium text-gray-600">
           {STATUS_LEGEND.map(({ key, label }) => (
             <div key={key} className="flex items-center gap-2">
-              <span className={`inline-flex h-4 w-6 items-center justify-center rounded-sm ${STATUS_LEGEND_STYLES[key]}`}></span>
-              <span className="capitalize text-slate-200/85">{label}</span>
+              <span className={`inline-flex h-4 w-6 items-center justify-center rounded ${STATUS_LEGEND_STYLES[key]}`}></span>
+              <span>{label}</span>
             </div>
           ))}
         </div>
       </header>
 
-      <div className="mt-6 flex justify-center">
-        <div className="rounded-full border border-white/15 bg-white/10 px-8 py-2 text-xs font-semibold uppercase tracking-[0.4em] text-slate-200 shadow-inner shadow-black/40">
+      <div className="mt-8 flex justify-center">
+        <div className="rounded-lg border-2 border-gray-200 bg-gray-50 px-12 py-3 text-xs font-bold uppercase tracking-widest text-gray-500">
           Stage
         </div>
       </div>
 
-      <div className="mt-8 max-h-[70vh] overflow-auto pr-2">
+      {/* Adding overflow-x-auto handles small screens gracefully, but flex-col is the core response */}
+      <div className="mt-8 md:max-h-[70vh] overflow-auto md:pr-2">
         {['lowerBalcony', 'orchestra', 'lodges', 'upperBalcony'].map((groupKey) => {
           const slices = venueLayout.groups[groupKey];
           if (!slices || slices.length === 0) {
             return null;
           }
 
+          const gridClass = getGridColumnsClass(slices.length);
+
           return (
             <section key={groupKey} className="mb-10 last:mb-0">
-              <h4 className="mb-4 text-xs font-semibold uppercase tracking-[0.45em] text-slate-500">
+              <h4 className="mb-4 text-xs font-bold uppercase tracking-widest text-gray-400">
                 {GROUP_TITLES[groupKey]}
               </h4>
-              <div
-                className="grid gap-4"
-                style={{ gridTemplateColumns: `repeat(${slices.length}, minmax(0, 1fr))` }}
-              >
+              <div className={`flex flex-col gap-4 md:grid ${gridClass}`}>
                 {slices.map((slice) => (
                   <SliceCard key={slice.key} slice={slice} />
                 ))}
@@ -202,32 +127,31 @@ function SeatMap({ seats, isLoading }) {
 
 function SliceCard({ slice }) {
   return (
-    <div
-      className={`relative overflow-hidden rounded-2xl p-4 shadow-[0_25px_55px_-35px_rgba(15,23,42,0.95)] transition-shadow duration-300 hover:shadow-[0_35px_65px_-30px_rgba(59,130,246,0.35)] ${slice.theme.panel}`}
-    >
-      <div className="flex items-center justify-between">
+    <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm transition-shadow hover:shadow-md">
+      <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-4">
         <div>
-          <h5 className="text-sm font-semibold text-white drop-shadow-[0_1px_3px_rgba(15,23,42,0.6)]">
+          <h5 className="text-sm font-semibold text-gray-900">
             {slice.displayName}
           </h5>
-          <p className="text-[0.65rem] uppercase tracking-[0.4em] text-slate-200/60">
+          <p className="text-xs font-medium text-gray-500 mt-0.5">
             {slice.seatCount} seats
           </p>
         </div>
-        <div className={`rounded-full px-3 py-1 text-[0.55rem] uppercase tracking-[0.35em] ${slice.theme.badge}`}>
+        <div className="rounded-md bg-gray-100 px-2.5 py-1 text-xs font-semibold uppercase tracking-wider text-gray-600">
           {slice.rows.length} rows
         </div>
       </div>
 
-      <div className="mt-3 space-y-2">
+      {/* Overflow-x-auto allows wide rows to scroll horizontally inside their card instead of breaking layout */}
+      <div className="space-y-3 overflow-x-auto pb-2">
         {slice.rows.map((row) => (
           <div key={row.label} className="flex items-center gap-3">
-            <span className="w-10 shrink-0 text-[0.6rem] uppercase tracking-[0.35em] text-slate-200/70">
+            <span className="w-8 shrink-0 text-[0.65rem] font-bold uppercase tracking-wider text-gray-400">
               {row.label}
             </span>
-            <div className="flex flex-wrap gap-1">
+            <div className="flex flex-nowrap md:flex-wrap gap-1.5 w-max">
               {row.seats.map((seat) => (
-                <SeatToken key={seat.id} seat={seat} theme={slice.theme} />
+                <SeatToken key={seat.id} seat={seat} />
               ))}
             </div>
           </div>
@@ -237,20 +161,18 @@ function SliceCard({ slice }) {
   );
 }
 
-function SeatToken({ seat, theme }) {
+function SeatToken({ seat }) {
   const status = seat?.status || 'available';
-  const shouldColorize = status === 'available' || status === 'reserved';
-  const seatClass = shouldColorize ? `${theme.seatBase} ${theme.seatText}` : 'bg-slate-600/70 text-slate-200';
-  const overlay = STATUS_OVERLAY_CLASSES[status] || STATUS_OVERLAY_CLASSES.available;
+  const seatClass = SEAT_CLASSES[status] || SEAT_CLASSES.available;
   const label = formatSeatLabel(seat);
   const title = `${seat?.section || 'Section'} ${seat?.row_label || ''} Seat ${seat?.seat_number} • ${status}`;
 
   return (
     <div
       title={title}
-      className={`relative flex h-7 w-7 items-center justify-center rounded-md text-[0.55rem] font-semibold uppercase tracking-tight transition-transform duration-150 hover:scale-105 ${seatClass} ${theme.seatBorder} ${overlay}`}
+      className={`relative shrink-0 flex h-8 w-8 items-center justify-center rounded-lg text-[0.6rem] font-bold uppercase tracking-tight transition-transform duration-100 ease-in ${seatClass}`}
     >
-      <span className="relative z-[1] drop-shadow-[0_1px_2px_rgba(15,23,42,0.45)]">{label}</span>
+      <span className="relative z-[1]">{label}</span>
     </div>
   );
 }
@@ -352,11 +274,9 @@ function createGroupSlices() {
   return Object.fromEntries(
     Object.keys(SLICE_CONFIG).map((groupKey) => {
       const labels = SLICE_CONFIG[groupKey].labels;
-      const themes = SLICE_THEMES[groupKey];
 
       const slices = labels.map((label, idx) => ({
         displayName: label,
-        theme: themes[idx % themes.length],
         seatCount: 0,
         rows: new Map()
       }));

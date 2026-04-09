@@ -101,6 +101,8 @@ function EventsPage() {
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+    // Scroll to form on mobile when creating a new event
+    document.getElementById('event-form-container')?.scrollIntoView({ behavior: 'smooth' });
   };
 
   const populateForm = (event) => {
@@ -128,6 +130,8 @@ function EventsPage() {
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+    // Scroll to form on mobile when editing
+    document.getElementById('event-form-container')?.scrollIntoView({ behavior: 'smooth' });
   };
 
   const handleRemovePoster = () => {
@@ -219,7 +223,6 @@ function EventsPage() {
       setDeletingId(event.id);
       await apiFetch(`/api/admin/events/${event.id}`, { method: 'DELETE' });
       if (formState.id === event.id) {
-        // If currently editing this event, reset the form
         setFormState(initialFormState);
         if (fileInputRef.current) fileInputRef.current.value = '';
       }
@@ -235,20 +238,20 @@ function EventsPage() {
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-8">
-      <section className="glass-panel px-6 py-6">
+      <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <div className="flex flex-col justify-between gap-6 md:flex-row md:items-center">
           <div className="space-y-2">
-            <p className="glass-section-label">Event portfolio</p>
-            <h2 className="page-heading">Manage events</h2>
-            <p className="page-subheading max-w-2xl">
+            <p className="text-sm font-medium text-gray-500">Event portfolio</p>
+            <h2 className="text-2xl font-semibold text-gray-900">Manage events</h2>
+            <p className="text-sm text-gray-500 max-w-2xl mt-1">
               Publish new events, update schedules, and oversee collateral with live occupancy and attendance data to guide your campaigns.
             </p>
           </div>
           <div className="flex flex-col items-start gap-3 md:flex-row md:items-center">
-            <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.35em] text-slate-200/80">
+            <span className="rounded-full bg-gray-50 border border-gray-200 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-gray-600">
               Live events · {analyticsEvents.length}
             </span>
-            <button type="button" onClick={resetForm} className="primary-button">
+            <button type="button" onClick={resetForm} className="bg-gray-900 text-white hover:bg-gray-800 px-4 py-2 rounded-lg transition-colors font-medium flex items-center justify-center gap-2 shadow-sm">
               <PlusIcon className="h-4 w-4" />
               New event
             </button>
@@ -256,21 +259,21 @@ function EventsPage() {
         </div>
       </section>
 
-      <section className="grid gap-5 md:grid-cols-4">
+      <section className="grid gap-5 grid-cols-2 md:grid-cols-4">
         <StatCard
           label="Events online"
           value={analyticsEvents.length}
-          accent="bg-gradient-to-r from-sky-500 via-indigo-500 to-purple-500"
+          accent="bg-gray-50 text-gray-900 border border-gray-100"
         />
         <StatCard
           label="Tickets sold"
           value={(globalTotals?.tickets?.total ?? 0) - (globalTotals?.tickets?.cancelled ?? 0)}
-          accent="bg-gradient-to-r from-purple-500 via-violet-500 to-fuchsia-500"
+          accent="bg-blue-50 text-blue-700"
         />
         <StatCard
           label="Check-ins (hour)"
           value={globalTotals?.checkIns?.lastHour ?? 0}
-          accent="bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400"
+          accent="bg-green-50 text-green-700"
         />
         <StatCard
           label="Revenue"
@@ -278,18 +281,19 @@ function EventsPage() {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2,
           })}`}
-          accent="bg-gradient-to-r from-amber-400 via-orange-500 to-rose-500"
+          accent="bg-gray-50 text-gray-900 border border-gray-100"
         />
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[1.7fr_1.1fr]">
+      {/* On mobile, stack flex-col-reverse so form is below if requested, but flex-col places the right sidebar on top/bottom. Grid reverses order nicely. */}
+      <section className="flex flex-col-reverse lg:grid lg:grid-cols-[1.7fr_1.1fr] gap-6">
         <div className="space-y-4">
           {loading ? (
-            <div className="glass-card flex h-40 items-center justify-center text-sm text-slate-200/80">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 flex h-40 items-center justify-center text-sm text-gray-500">
               Loading events…
             </div>
           ) : sortedEvents.length === 0 ? (
-            <div className="glass-card flex h-40 items-center justify-center text-sm text-slate-200/80">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 flex h-40 items-center justify-center text-sm text-gray-500">
               No events yet. Create your first event using the form.
             </div>
           ) : (
@@ -310,16 +314,16 @@ function EventsPage() {
           )}
         </div>
 
-        <div className="glass-panel space-y-5 px-6 py-6">
+        <div id="event-form-container" className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-5 lg:sticky lg:top-8 h-max">
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold tracking-tight text-white">
+            <h3 className="text-lg font-semibold text-gray-900">
               {isEditing ? 'Update event' : 'Create new event'}
             </h3>
             {isEditing && (
               <button
                 type="button"
                 onClick={resetForm}
-                className="text-xs font-semibold text-sky-300 hover:underline"
+                className="text-xs font-semibold text-blue-600 hover:underline"
               >
                 Cancel edit
               </button>
@@ -328,7 +332,7 @@ function EventsPage() {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-1">
-              <label className="input-label" htmlFor="event-name">
+              <label className="text-sm font-medium text-gray-700" htmlFor="event-name">
                 Event name
               </label>
               <input
@@ -336,7 +340,7 @@ function EventsPage() {
                 type="text"
                 value={formState.name}
                 onChange={(e) => setFormState((prev) => ({ ...prev, name: e.target.value }))}
-                className="input-field"
+                className="bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 px-3 py-2 w-full block"
                 placeholder="e.g. CCIS Recognition Night"
                 required
               />
@@ -344,7 +348,7 @@ function EventsPage() {
 
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-1">
-                <label className="input-label" htmlFor="event-start">
+                <label className="text-sm font-medium text-gray-700" htmlFor="event-start">
                   Starts
                 </label>
                 <input
@@ -352,12 +356,12 @@ function EventsPage() {
                   type="datetime-local"
                   value={formState.starts_at}
                   onChange={(e) => setFormState((prev) => ({ ...prev, starts_at: e.target.value }))}
-                  className="input-field"
+                  className="bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 px-3 py-2 w-full block"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="input-label" htmlFor="event-end">
+                <label className="text-sm font-medium text-gray-700" htmlFor="event-end">
                   Ends
                 </label>
                 <input
@@ -365,13 +369,13 @@ function EventsPage() {
                   type="datetime-local"
                   value={formState.ends_at}
                   onChange={(e) => setFormState((prev) => ({ ...prev, ends_at: e.target.value }))}
-                  className="input-field"
+                  className="bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 px-3 py-2 w-full block"
                 />
               </div>
             </div>
 
             <div className="space-y-1">
-              <label className="input-label" htmlFor="event-capacity">
+              <label className="text-sm font-medium text-gray-700" htmlFor="event-capacity">
                 Capacity
               </label>
               <input
@@ -380,13 +384,13 @@ function EventsPage() {
                 min="0"
                 value={formState.capacity}
                 onChange={(e) => setFormState((prev) => ({ ...prev, capacity: e.target.value }))}
-                className="input-field"
+                className="bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 px-3 py-2 w-full block"
                 placeholder="1196"
               />
             </div>
 
             <div className="space-y-1">
-              <label className="input-label" htmlFor="event-description">
+              <label className="text-sm font-medium text-gray-700" htmlFor="event-description">
                 Description
               </label>
               <textarea
@@ -394,35 +398,35 @@ function EventsPage() {
                 rows="3"
                 value={formState.description}
                 onChange={(e) => setFormState((prev) => ({ ...prev, description: e.target.value }))}
-                className="input-field"
+                className="bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 px-3 py-2 w-full block resize-y"
                 placeholder="Highlight key details attendees should know."
               />
             </div>
 
             <div className="space-y-2">
-              <span className="input-label">Poster</span>
+              <span className="text-sm font-medium text-gray-700">Poster</span>
               <div className="flex items-start gap-4">
-                <div className="flex h-32 w-24 items-center justify-center overflow-hidden rounded-xl border border-dashed border-white/30 bg-white/5">
+                <div className="flex h-32 w-24 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-dashed border-gray-300 bg-gray-50 aspect-[3/4]">
                   {formState.posterPreview ? (
                     <img src={formState.posterPreview} alt="Event poster" className="h-full w-full object-cover" />
                   ) : (
-                    <PhotoIcon className="h-10 w-10 text-slate-400" />
+                    <PhotoIcon className="h-8 w-8 text-gray-400" />
                   )}
                 </div>
-                <div className="flex-1 space-y-3 text-sm text-slate-200/90">
+                <div className="flex-1 space-y-3 text-sm text-gray-600 pt-1">
                   <input
                     ref={fileInputRef}
                     type="file"
                     accept="image/*"
                     onChange={handlePosterChange}
-                    className="block w-full text-sm text-slate-200 file:mr-4 file:rounded-xl file:border-0 file:bg-gradient-to-r file:from-sky-500 file:via-indigo-500 file:to-purple-500 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:brightness-110"
+                    className="block w-full text-sm text-gray-500 file:mr-4 file:rounded-lg file:border-0 file:bg-gray-100 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-gray-900 hover:file:bg-gray-200 focus:outline-none"
                   />
-                  <p className="text-xs text-slate-400">Maximum size 5MB. JPG or PNG recommended.</p>
+                  <p className="text-xs text-gray-500">Maximum size 5MB. JPG or PNG recommended.</p>
                   {(formState.posterPreview || formState.posterUrl) && (
                     <button
                       type="button"
                       onClick={handleRemovePoster}
-                      className="text-xs font-semibold text-rose-300 hover:underline"
+                      className="text-xs font-semibold text-red-600 hover:underline"
                     >
                       Remove poster
                     </button>
@@ -431,7 +435,7 @@ function EventsPage() {
               </div>
             </div>
 
-            <button type="submit" disabled={saving} className="primary-button w-full disabled:opacity-60">
+            <button type="submit" disabled={saving} className="bg-gray-900 text-white hover:bg-gray-800 focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 w-full rounded-lg px-4 py-2 font-medium transition-colors disabled:opacity-60 flex items-center justify-center gap-2 shadow-sm">
               {saving ? (
                 <>
                   <ArrowPathIcon className="h-4 w-4 animate-spin" />
@@ -464,45 +468,37 @@ function EventCard({ event, onEdit, onExport, onDelete, deletingId, isActive, an
 
   return (
     <div
-      className={`glass-card relative flex h-full flex-col gap-6 p-6 transition duration-200 hover:border-white/20 hover:shadow-xl ${
-        isActive ? 'ring-2 ring-sky-400/40' : ''
+      className={`bg-white rounded-xl shadow-sm border transition duration-200 relative flex h-full flex-col gap-6 p-6 hover:shadow-md ${
+        isActive ? 'border-blue-500 ring-1 ring-blue-500' : 'border-gray-200'
       }`}
     >
       <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
-        <div className="w-full shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-white/5 sm:w-36">
+        <div className="w-full shrink-0 overflow-hidden rounded-lg border border-gray-100 bg-gray-50 sm:w-32 aspect-[3/4] sm:aspect-auto sm:h-44">
           {posterSrc ? (
             <img src={posterSrc} alt={`${event.name} poster`} className="h-full w-full object-cover" />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-slate-500/40 to-slate-900/20 text-[0.65rem] uppercase tracking-[0.4em] text-slate-200/80">
+            <div className="flex h-full w-full items-center justify-center text-xs font-medium uppercase tracking-widest text-gray-400">
               Poster
             </div>
           )}
         </div>
         <div className="flex-1 space-y-3">
           <div className="space-y-1">
-            <h4 className="text-xl font-semibold tracking-tight text-white">{event.name}</h4>
-            <p className="text-xs uppercase tracking-[0.35em] text-slate-300/80">
+            <h4 className="text-xl font-semibold text-gray-900">{event.name}</h4>
+            <p className="text-xs font-medium uppercase tracking-wider text-gray-500">
               Capacity · {event.capacity ?? '—'}
             </p>
           </div>
-          <div className="grid gap-2 text-sm text-slate-200/85 sm:grid-cols-2">
+          <div className="grid gap-2 text-sm text-gray-700 sm:grid-cols-2">
             {starts && (
-              <EventMetaRow
-                indicator="bg-sky-400"
-                label="Starts"
-                value={starts}
-              />
+              <EventMetaRow indicator="bg-blue-500" label="Starts" value={starts} />
             )}
             {ends && (
-              <EventMetaRow
-                indicator="bg-purple-400"
-                label="Ends"
-                value={ends}
-              />
+              <EventMetaRow indicator="bg-purple-500" label="Ends" value={ends} />
             )}
           </div>
           {event.description && (
-            <p className="text-sm leading-relaxed text-slate-200/90">
+            <p className="text-sm leading-relaxed text-gray-600">
               {event.description.length > 180
                 ? `${event.description.slice(0, 177)}…`
                 : event.description}
@@ -511,16 +507,16 @@ function EventCard({ event, onEdit, onExport, onDelete, deletingId, isActive, an
         </div>
       </div>
 
-      <div className="space-y-4 rounded-3xl border border-white/10 bg-gradient-to-br from-white/8 via-white/5 to-white/0 p-5 backdrop-blur-sm">
+      <div className="space-y-4 rounded-xl border border-gray-100 bg-gray-50 p-5 mt-auto">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-[0.65rem] uppercase tracking-[0.3em] text-slate-200/70">Live metrics</p>
-            <h5 className="text-lg font-semibold text-white">{occupancyLabel}</h5>
+            <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Live metrics</p>
+            <h5 className="text-lg font-semibold text-gray-900 mt-1">{occupancyLabel}</h5>
           </div>
           <div className="w-full max-w-xs self-start sm:self-auto">
-            <div className="h-2 w-full overflow-hidden rounded-full bg-slate-600/40">
+            <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-sky-400 to-indigo-400 transition-all duration-500"
+                className="h-full bg-blue-500 transition-all duration-500"
                 style={{ width: occupancyWidth }}
               />
             </div>
@@ -528,19 +524,19 @@ function EventCard({ event, onEdit, onExport, onDelete, deletingId, isActive, an
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          <EventStatPill label="Seats sold" value={formatCompact(seats.sold)} tone="from-emerald-400/20 to-emerald-500/10" />
-          <EventStatPill label="Seats reserved" value={formatCompact(seats.reserved)} tone="from-sky-400/20 to-sky-500/10" />
-          <EventStatPill label="Seats open" value={formatCompact(seats.available)} tone="from-slate-400/20 to-slate-500/10" />
-          <EventStatPill label="Tickets used" value={formatCompact(tickets.used)} tone="from-indigo-400/20 to-indigo-500/10" />
-          <EventStatPill label="Tickets active" value={formatCompact(tickets.active)} tone="from-fuchsia-400/20 to-fuchsia-500/10" />
-          <EventStatPill label="Cancelled" value={formatCompact(tickets.cancelled)} tone="from-rose-400/20 to-rose-500/10" />
-          <EventStatPill label="Check-ins (5m)" value={formatCompact(checkIns.lastFiveMinutes)} tone="from-teal-400/20 to-teal-500/10" />
-          <EventStatPill label="Check-ins (1h)" value={formatCompact(checkIns.lastHour)} tone="from-cyan-400/20 to-cyan-500/10" />
-          <EventStatPill label="Revenue" value={formatCurrency(tickets.revenue)} tone="from-amber-400/20 to-amber-500/10" />
+          <EventStatPill label="Seats sold" value={formatCompact(seats.sold)} />
+          <EventStatPill label="Seats reserved" value={formatCompact(seats.reserved)} />
+          <EventStatPill label="Seats open" value={formatCompact(seats.available)} />
+          <EventStatPill label="Tickets used" value={formatCompact(tickets.used)} />
+          <EventStatPill label="Tickets active" value={formatCompact(tickets.active)} />
+          <EventStatPill label="Cancelled" value={formatCompact(tickets.cancelled)} />
+          <EventStatPill label="Check-ins (5m)" value={formatCompact(checkIns.lastFiveMinutes)} />
+          <EventStatPill label="Check-ins (1h)" value={formatCompact(checkIns.lastHour)} />
+          <EventStatPill label="Revenue" value={formatCurrency(tickets.revenue)} />
         </div>
       </div>
 
-      <div className="mt-auto flex flex-col gap-3 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 border-t border-gray-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           <ExportButton label="CSV" onClick={() => onExport(event.id, 'csv')} />
           <ExportButton label="Excel" onClick={() => onExport(event.id, 'xlsx')} />
@@ -550,7 +546,7 @@ function EventCard({ event, onEdit, onExport, onDelete, deletingId, isActive, an
           <button
             type="button"
             onClick={() => onEdit(event)}
-            className="secondary-button h-10 px-4 py-2 text-xs uppercase tracking-[0.2em]"
+            className="flex items-center gap-2 bg-gray-100 text-gray-700 hover:bg-gray-200 hover:text-gray-900 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
           >
             <PencilSquareIcon className="h-4 w-4" />
             Edit
@@ -559,7 +555,7 @@ function EventCard({ event, onEdit, onExport, onDelete, deletingId, isActive, an
             type="button"
             onClick={() => onDelete?.(event)}
             disabled={deletingId === event.id}
-            className="h-10 rounded-xl border border-rose-500/40 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-rose-300 hover:border-rose-400 hover:text-rose-200 disabled:opacity-60"
+            className="flex items-center gap-2 bg-white text-red-600 border border-red-200 hover:bg-red-50 hover:border-red-300 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-60"
             title="Delete event"
           >
             {deletingId === event.id ? 'Deleting…' : 'Delete'}
@@ -570,17 +566,13 @@ function EventCard({ event, onEdit, onExport, onDelete, deletingId, isActive, an
   );
 }
 
-function EventStatPill({ label, value, tone }) {
+function EventStatPill({ label, value }) {
   return (
-    <div
-      className={`group rounded-2xl border border-white/10 bg-white/5 p-4 shadow-sm backdrop-blur-sm transition hover:-translate-y-[1px] hover:border-white/20 hover:shadow-lg ${
-        tone ? `bg-gradient-to-br ${tone}` : ''
-      }`}
-    >
-      <p className="text-[0.6rem] uppercase tracking-[0.28em] text-white/70">
+    <div className="rounded-lg border border-gray-100 bg-gray-50 p-3 shadow-none transition-colors hover:bg-gray-100">
+      <p className="text-xs font-medium text-gray-500">
         {label}
       </p>
-      <p className="mt-2 text-2xl font-semibold tracking-tight text-white group-hover:text-white">
+      <p className="mt-1 text-lg font-semibold tracking-tight text-gray-900">
         {value}
       </p>
     </div>
@@ -589,11 +581,11 @@ function EventStatPill({ label, value, tone }) {
 
 function EventMetaRow({ indicator, label, value }) {
   return (
-    <div className="flex items-start gap-3 rounded-2xl border border-white/5 bg-white/5 p-3 text-xs text-slate-200/90">
-      <span className={`mt-1 inline-flex h-2 w-2 rounded-full ${indicator}`} />
-      <div className="space-y-1">
-        <p className="uppercase tracking-[0.35em] text-[0.58rem] text-white/60">{label}</p>
-        <p className="text-sm font-medium text-white/90">{value}</p>
+    <div className="flex items-start gap-3 rounded-lg border border-gray-100 bg-gray-50 p-3 text-xs text-gray-700">
+      <span className={`mt-1.5 inline-flex h-2 w-2 rounded-full shrink-0 ${indicator}`} />
+      <div className="space-y-0.5">
+        <p className="text-[10px] font-medium uppercase tracking-wider text-gray-500">{label}</p>
+        <p className="font-medium text-gray-900">{value}</p>
       </div>
     </div>
   );
@@ -604,9 +596,9 @@ function ExportButton({ label, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="muted-button h-10 px-4 py-2 text-xs uppercase tracking-[0.2em]"
+      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 hover:text-gray-900 rounded-lg transition-colors"
     >
-      <ArrowDownTrayIcon className="h-4 w-4" />
+      <ArrowDownTrayIcon className="h-3.5 w-3.5" />
       {label}
     </button>
   );
