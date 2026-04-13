@@ -1,4 +1,4 @@
-// Adds user_name to tickets and to_name to email_queue if they don't exist
+// Adds user_name/student_section to tickets and to_name to email_queue if they don't exist
 // Usage: from server folder -> npm run db:migrate:names
 // or from repo root -> node server/scripts/updateSchemaNames.js
 
@@ -73,7 +73,7 @@ async function ensureColumn(connection, table, column, definitionSql) {
 }
 
 async function run() {
-  console.log("Starting DB migration for attendee name columns...");
+  console.log("Starting DB migration for attendee columns...");
   const connection = await pool.getConnection();
   try {
     const results = [];
@@ -85,6 +85,16 @@ async function run() {
         "tickets",
         "user_name",
         "VARCHAR(255)"
+      )
+    );
+
+    // tickets.student_section VARCHAR(120) NULL
+    results.push(
+      await ensureColumn(
+        connection,
+        "tickets",
+        "student_section",
+        "VARCHAR(120)"
       )
     );
 

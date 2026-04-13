@@ -6,6 +6,7 @@ const DEFAULT_BODY_TEMPLATE = `<!doctype html>
 <p>Hi {{name}},</p>
 <p>We're excited to see you at <strong>{{event}}</strong>.</p>
 <ul>
+  <li><strong>Student Section:</strong> {{student_section}}</li>
   <li><strong>Seat:</strong> {{seat}}</li>
   <li><strong>Ticket Code:</strong> {{ticket_code}}</li>
   <li><strong>Starts:</strong> {{event_starts}}</li>
@@ -117,39 +118,39 @@ function BulkEmailUploader({ eventId, onQueued }) {
   };
 
   return (
-    <div className="glass-card flex h-full flex-col gap-6 p-6">
+    <div className="flex h-full flex-col gap-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
       <div className="space-y-2">
-        <p className="glass-section-label">Bulk email queue</p>
-        <h3 className="text-lg font-semibold text-white">Ticket delivery automation</h3>
-        <p className="text-sm text-slate-200/80">
+        <p className="text-xs font-semibold uppercase tracking-[0.25em] text-gray-500">Bulk email queue</p>
+        <h3 className="text-lg font-semibold text-gray-900">Ticket delivery automation</h3>
+        <p className="text-sm text-gray-600">
           Upload a CSV or paste recipients to queue personalized tickets. Seats are auto-assigned in order starting at Row A · Seat 1.
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="space-y-2">
-          <label className="input-label">CSV upload</label>
+          <label className="text-xs font-semibold uppercase tracking-[0.25em] text-gray-500">CSV upload</label>
           <input
             ref={fileInputRef}
             type="file"
             accept=".csv"
-            className="block w-full text-sm text-slate-200 file:mr-4 file:rounded-xl file:border-0 file:bg-gradient-to-r file:from-sky-500 file:via-indigo-500 file:to-purple-500 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:brightness-110"
+            className="block w-full text-sm text-gray-600 file:mr-4 file:rounded-xl file:border-0 file:bg-gradient-to-r file:from-sky-500 file:via-indigo-500 file:to-purple-500 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:brightness-110"
           />
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <label className="input-label">Optional banner image</label>
+            <label className="text-xs font-semibold uppercase tracking-[0.25em] text-gray-500">Optional banner image</label>
             <input
               ref={bannerInputRef}
               type="file"
               accept="image/*"
-              className="block w-full text-sm text-slate-200 file:mr-4 file:rounded-xl file:border-0 file:bg-gradient-to-r file:from-emerald-500 file:via-teal-500 file:to-cyan-500 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:brightness-110"
+              className="block w-full text-sm text-gray-600 file:mr-4 file:rounded-xl file:border-0 file:bg-gradient-to-r file:from-emerald-500 file:via-teal-500 file:to-cyan-500 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:brightness-110"
             />
-            <p className="text-xs text-slate-400">If provided, this image will be embedded inline as a banner.</p>
+            <p className="text-xs text-gray-500">If provided, this image will be embedded inline as a banner.</p>
           </div>
           <div className="space-y-2">
-            <label className="input-label" htmlFor="use-poster">
+            <label className="text-xs font-semibold uppercase tracking-[0.25em] text-gray-500" htmlFor="use-poster">
               Use event poster as banner
             </label>
             <div className="flex items-center gap-2">
@@ -160,13 +161,13 @@ function BulkEmailUploader({ eventId, onQueued }) {
                 onChange={(e) => setUsePoster(e.target.checked)}
                 className="h-4 w-4"
               />
-              <span className="text-xs text-slate-300/80">If checked (and no banner file uploaded), the event poster will be embedded.</span>
+              <span className="text-xs text-gray-600">If checked (and no banner file uploaded), the event poster will be embedded.</span>
             </div>
           </div>
         </div>
 
         <div className="space-y-2">
-          <label className="input-label" htmlFor="manual-list">
+          <label className="text-xs font-semibold uppercase tracking-[0.25em] text-gray-500" htmlFor="manual-list">
             Manual entries
           </label>
           <textarea
@@ -175,15 +176,15 @@ function BulkEmailUploader({ eventId, onQueued }) {
             value={manualEntries}
             onChange={(e) => setManualEntries(e.target.value)}
             placeholder={['user@example.com', 'another@example.com'].join('\n')}
-            className="input-field font-mono text-xs"
+            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-mono text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
           />
-          <p className="text-xs text-slate-300/80">
-            Separate entries with new lines. Provide one email per line; names and notes are optional after a comma.
+          <p className="text-xs text-gray-500">
+            Separate entries with new lines. Use: email,name,student_section. Name and section are optional.
           </p>
         </div>
 
         <div className="space-y-2">
-          <label className="input-label" htmlFor="subject-template">
+          <label className="text-xs font-semibold uppercase tracking-[0.25em] text-gray-500" htmlFor="subject-template">
             Email subject template
           </label>
           <input
@@ -191,15 +192,15 @@ function BulkEmailUploader({ eventId, onQueued }) {
             type="text"
             value={subjectTemplate}
             onChange={(e) => setSubjectTemplate(e.target.value)}
-            className="input-field"
+            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
           />
-          <p className="text-xs text-slate-300/80">
-            Use tokens like <code>{'{{event}}'}</code>, <code>{'{{seat}}'}</code>, <code>{'{{ticket_code}}'}</code>.
+          <p className="text-xs text-gray-500">
+            Use tokens like <code>{'{{event}}'}</code>, <code>{'{{student_section}}'}</code>, <code>{'{{seat}}'}</code>, <code>{'{{ticket_code}}'}</code>.
           </p>
         </div>
 
         <div className="space-y-2">
-          <label className="input-label" htmlFor="body-template">
+          <label className="text-xs font-semibold uppercase tracking-[0.25em] text-gray-500" htmlFor="body-template">
             Email body template (HTML supported)
           </label>
           <textarea
@@ -207,11 +208,11 @@ function BulkEmailUploader({ eventId, onQueued }) {
             rows="8"
             value={bodyTemplate}
             onChange={(e) => setBodyTemplate(e.target.value)}
-            className="input-field font-mono text-xs"
+            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-mono text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
           />
-          <div className="space-y-1 text-xs text-slate-300/80">
+          <div className="space-y-1 text-xs text-gray-500">
             <p>
-              Available placeholders: <code>{'{{name}}'}</code>, <code>{'{{email}}'}</code>, <code>{'{{event}}'}</code>, <code>{'{{seat}}'}</code>, <code>{'{{ticket_code}}'}</code>, <code>{'{{qr_cid}}'}</code>, <code>{'{{qr_data_url}}'}</code>, <code>{'{{event_starts}}'}</code>, <code>{'{{poster_cid}}'}</code>, <code>{'{{poster_url}}'}</code>.
+              Available placeholders: <code>{'{{name}}'}</code>, <code>{'{{email}}'}</code>, <code>{'{{student_section}}'}</code>, <code>{'{{event}}'}</code>, <code>{'{{seat}}'}</code>, <code>{'{{ticket_code}}'}</code>, <code>{'{{qr_cid}}'}</code>, <code>{'{{qr_data_url}}'}</code>, <code>{'{{event_starts}}'}</code>, <code>{'{{poster_cid}}'}</code>, <code>{'{{poster_url}}'}</code>.
             </p>
             <p>
               To embed the QR inline, use <code>{'<img src="cid:{{qr_cid}}" alt="QR code" />'}</code>.
@@ -222,7 +223,7 @@ function BulkEmailUploader({ eventId, onQueued }) {
           </div>
         </div>
 
-        <div className="flex items-center justify-between text-xs text-slate-300/80">
+        <div className="flex items-center justify-between text-xs text-gray-500">
           <span>Manual recipients: {manualRecipients.length}</span>
           <span>
             {(fileInputRef.current?.files?.length ? 'CSV attached' : 'No CSV file')}
@@ -231,14 +232,18 @@ function BulkEmailUploader({ eventId, onQueued }) {
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <button type="submit" disabled={isUploading} className="primary-button disabled:opacity-60">
+          <button
+            type="submit"
+            disabled={isUploading}
+            className="rounded-lg bg-gray-900 px-4 py-2 font-medium text-white transition-colors hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+          >
             {isUploading ? 'Queueing…' : 'Queue emails'}
           </button>
           <button
             type="button"
             onClick={handleSendNow}
             disabled={isSending}
-            className="secondary-button disabled:opacity-60"
+            className="rounded-lg border border-gray-300 bg-white px-4 py-2 font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isSending ? 'Sending…' : 'Send queued now'}
           </button>
@@ -246,17 +251,17 @@ function BulkEmailUploader({ eventId, onQueued }) {
       </form>
 
       {lastReport && (
-        <div className="space-y-3 text-xs text-slate-200/85">
+        <div className="space-y-3 text-xs text-gray-600">
           {lastReport.type === 'queue' && (
             <>
               <p>
                 Last queued {lastReport.queued} recipient{lastReport.queued === 1 ? '' : 's'} at {lastReport.at.toLocaleTimeString()}.
               </p>
               {lastReport.details?.length ? (
-                <ul className="max-h-40 overflow-y-auto rounded-2xl border border-white/10 bg-white/5 p-3 font-mono text-[11px]">
+                <ul className="max-h-40 overflow-y-auto rounded-lg border border-gray-200 bg-gray-50 p-3 font-mono text-[11px] text-gray-700">
                   {lastReport.details.map((item) => (
                     <li key={`${item.email}-${item.ticketCode}`}>
-                      {item.email} → {item.seat} ({item.ticketCode})
+                      {item.email} → {item.seat} ({item.ticketCode}){item.studentSection ? ` • ${item.studentSection}` : ''}
                     </li>
                   ))}
                 </ul>
@@ -265,11 +270,11 @@ function BulkEmailUploader({ eventId, onQueued }) {
           )}
 
           {lastReport.type === 'send' && lastReport.result && (
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
-              <p className="font-semibold text-slate-100">
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+              <p className="font-semibold text-gray-900">
                 Last send run at {lastReport.at.toLocaleTimeString()}:
               </p>
-              <ul className="ml-4 list-disc space-y-1 text-slate-300/85">
+              <ul className="ml-4 list-disc space-y-1 text-gray-700">
                 <li>Sent: {lastReport.result.sent}</li>
                 <li>Failed: {lastReport.result.failed}</li>
                 <li>Processed from queue: {lastReport.result.pending}</li>
@@ -289,18 +294,87 @@ function parseLines(source) {
     .map((line) => line.trim())
     .filter(Boolean);
 
+  if (lines.length === 0) return [];
+
+  const parsedRows = lines.map(parseCsvLine);
+  const headerRow = parsedRows[0].map((value) => normalizeHeader(value));
+  const emailIndex = findIndexByKeywords(headerRow, ['email', 'e-mail', 'mail']);
+  const nameIndex = findIndexByKeywords(headerRow, ['name', 'full name', 'fullname']);
+  const sectionIndex = findIndexByKeywords(headerRow, ['section', 'year and section', 'yr', 'block']);
+
+  const hasHeader = emailIndex >= 0;
+  const rows = hasHeader ? parsedRows.slice(1) : parsedRows;
+
+  if (hasHeader) {
+    return rows
+      .map((row) => {
+        const email = (row[emailIndex] || '').trim();
+        const name = nameIndex >= 0 ? (row[nameIndex] || '').trim() : '';
+        const section = sectionIndex >= 0 ? (row[sectionIndex] || '').trim() : '';
+        if (!email) return null;
+        return { email, name, section };
+      })
+      .filter(Boolean);
+  }
+
   const recipients = [];
-  for (const line of lines) {
-    const [emailRaw, nameRaw = '', ticketRaw = ''] = line.split(',');
+  for (const row of parsedRows) {
+    const [emailRaw = '', nameRaw = '', sectionRaw = ''] = row;
     const email = emailRaw?.trim();
     if (!email) continue;
     recipients.push({
       email,
       name: nameRaw.trim(),
-      ticketData: ticketRaw.trim(),
+      section: sectionRaw.trim(),
     });
   }
   return recipients;
+}
+
+function parseCsvLine(line) {
+  const values = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i];
+    const next = line[i + 1];
+
+    if (char === '"') {
+      if (inQuotes && next === '"') {
+        current += '"';
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (char === ',' && !inQuotes) {
+      values.push(current.trim());
+      current = '';
+      continue;
+    }
+
+    current += char;
+  }
+
+  values.push(current.trim());
+  return values;
+}
+
+function normalizeHeader(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function findIndexByKeywords(headers, keywords) {
+  return headers.findIndex((header) =>
+    keywords.some((keyword) => header.includes(keyword))
+  );
 }
 
 export default BulkEmailUploader;

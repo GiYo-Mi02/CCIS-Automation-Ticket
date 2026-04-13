@@ -60,6 +60,8 @@ The API listens on `http://localhost:4000` by default. Key endpoints:
 - `POST /api/admin/emails/bulk` – enqueue bulk emails **and** auto-assign the next available seats for the specified event (requires `event_id`, returns queued ticket details with seat + QR code).
 - `POST /api/scanner/verify-qr` – validate QR scans and mark tickets used
 
+`tickets` includes a `student_section` column used for Google Forms imports and template personalization (`{{student_section}}`).
+
 Uploaded posters are served from `/uploads/posters/...`. Ensure the `server/uploads/posters` directory is writable by the process.
 
 ## 6. Start the email worker
@@ -73,6 +75,12 @@ npm run worker
 The worker batches up to 200 pending emails, marks their status, and retries failures.
 
 ## 7. Maintenance notes
+
+- If your DB was created before the new attendee fields, run:
+  ```cmd
+  npm run db:migrate:names
+  ```
+  This ensures `tickets.user_name`, `tickets.student_section`, and `email_queue.to_name` exist.
 
 - Release expired reservations periodically:
   ```sql

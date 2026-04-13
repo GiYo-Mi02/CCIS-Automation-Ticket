@@ -624,6 +624,7 @@ function ScannerPage() {
                       <>
                         <p>Ticket: <span className="font-medium text-gray-900">{state.lastResult.data.ticketCode}</span></p>
                         {state.lastResult.data.attendeeName && <p>Name: <span className="font-medium text-gray-900">{state.lastResult.data.attendeeName}</span></p>}
+                        {state.lastResult.data.studentSection && <p>Section: <span className="font-medium text-gray-900">{state.lastResult.data.studentSection}</span></p>}
                         {state.lastResult.data.eventName && <p>Event: <span className="font-medium text-gray-900">{state.lastResult.data.eventName}</span></p>}
                         {state.lastResult.data.seatLabel && <p>Seat: <span className="font-medium text-gray-900">{state.lastResult.data.seatLabel}</span></p>}
                         <p className="pt-1">Status: {state.lastResult.data.message}</p>
@@ -633,6 +634,7 @@ function ScannerPage() {
                         <p>Reason: <span className="font-medium text-gray-900">{state.lastResult.message}</span></p>
                         {state.lastResult.data?.ticketCode && <p>Ticket: <span className="font-medium text-gray-900">{state.lastResult.data.ticketCode}</span></p>}
                         {state.lastResult.data?.attendeeName && <p>Name: <span className="font-medium text-gray-900">{state.lastResult.data.attendeeName}</span></p>}
+                        {state.lastResult.data?.studentSection && <p>Section: <span className="font-medium text-gray-900">{state.lastResult.data.studentSection}</span></p>}
                         {state.lastResult.data?.seatLabel && <p>Seat: <span className="font-medium text-gray-900">{state.lastResult.data.seatLabel}</span></p>}
                       </div>
                     )}

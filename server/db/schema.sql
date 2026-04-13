@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS tickets (
   ticket_code VARCHAR(128) UNIQUE,
   user_email VARCHAR(255),
   user_name VARCHAR(255),
+  student_section VARCHAR(120),
   event_id BIGINT NOT NULL,
   seat_id BIGINT,
   price DECIMAL(10,2) DEFAULT 0,

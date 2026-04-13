@@ -17,6 +17,8 @@ const DEFAULT_EMAIL_TEMPLATE = `<!doctype html>
 <p>Here are your ticket details for <strong>{{event}}</strong>:</p>
 <ul>
   <li><strong>Ticket Code:</strong> {{ticket_code}}</li>
+  <li><strong>Student Section:</strong> {{student_section}}</li>
+  <li><strong>Seat:</strong> {{seat}}</li>
   <li><strong>Starts:</strong> {{event_starts}}</li>
 </ul>
 <p>Present this QR code at the entrance:</p>
@@ -330,7 +332,7 @@ async function fetchEventWithAttendees(eventId) {
   }
 
   const [attendees] = await pool.query(
-    `SELECT t.id, t.ticket_code, t.user_email, t.user_name, t.price, t.created_at, t.status, t.used_at, s.section, s.row_label, s.seat_number
+    `SELECT t.id, t.ticket_code, t.user_email, t.user_name, t.student_section, t.price, t.created_at, t.status, t.used_at, s.section, s.row_label, s.seat_number
      FROM tickets t
      LEFT JOIN seats s ON t.seat_id = s.id
      WHERE t.event_id = ?
@@ -344,6 +346,7 @@ async function fetchEventWithAttendees(eventId) {
 function buildCsv(attendees) {
   const headers = [
     "Name",
+    "Section",
     "Email",
     "Ticket Code",
     "Seat",
@@ -365,6 +368,7 @@ function buildCsv(attendees) {
     lines.push(
       [
         attendee.user_name || "",
+        attendee.student_section || "",
         attendee.user_email || "",
         attendee.ticket_code || "",
         formatSeat(attendee),
@@ -386,6 +390,7 @@ async function buildExcel(attendees) {
 
   sheet.columns = [
     { header: "Name", key: "name", width: 28 },
+    { header: "Section", key: "studentSection", width: 18 },
     { header: "Email", key: "email", width: 35 },
     { header: "Ticket Code", key: "ticketCode", width: 25 },
     { header: "Seat", key: "seat", width: 30 },
@@ -400,6 +405,7 @@ async function buildExcel(attendees) {
     const attended = status === "used" || attendee.used_at ? "Yes" : "No";
     sheet.addRow({
       name: attendee.user_name || "",
+      studentSection: attendee.student_section || "",
       email: attendee.user_email || "",
       ticketCode: attendee.ticket_code || "",
       seat: formatSeat(attendee),
@@ -447,6 +453,9 @@ function buildPdf(event, attendees, res, filename) {
     doc
       .fontSize(12)
       .text(`${idx + 1}. ${attendee.user_email || ""}${nameSuffix}`);
+    doc
+      .fontSize(11)
+      .text(`   Section: ${attendee.student_section || "N/A"}`);
     doc.fontSize(11).text(`   Ticket: ${attendee.ticket_code || ""}`);
     doc.text(`   Seat: ${formatSeat(attendee)}`);
     doc.text(`   Status: ${status} | Attended: ${attended}`);
@@ -875,7 +884,8 @@ router.post("/events/:id/auto-assign", async (req, res, next) => {
 });
 
 router.post("/tickets/create", async (req, res, next) => {
-  const { event_id, seat_id, user_email, user_name, price } = req.body;
+  const { event_id, seat_id, user_email, user_name, student_section, price } =
+    req.body;
 
   if (!event_id || !seat_id || !user_email) {
     return res
@@ -892,11 +902,12 @@ router.post("/tickets/create", async (req, res, next) => {
       await connection.beginTransaction();
 
       const [ticketResult] = await connection.query(
-        "INSERT INTO tickets (ticket_code, user_email, user_name, event_id, seat_id, price) VALUES (?, ?, ?, ?, ?, ?)",
+        "INSERT INTO tickets (ticket_code, user_email, user_name, student_section, event_id, seat_id, price) VALUES (?, ?, ?, ?, ?, ?, ?)",
         [
           ticketCode,
           user_email,
           user_name || null,
+          student_section || null,
           event_id,
           seat_id,
           price || 0,
@@ -913,6 +924,7 @@ router.post("/tickets/create", async (req, res, next) => {
         seat_id,
         user_email,
         user_name: user_name || null,
+        student_section: student_section || null,
         issued_at: new Date().toISOString(),
         nonce: uuidv4(),
       };
@@ -947,12 +959,19 @@ function normaliseRecipient(entry) {
   if (!entry) return null;
   if (typeof entry === "string") {
     const email = entry.trim();
-    return email ? { email, name: "" } : null;
+    return email ? { email, name: "", section: "" } : null;
   }
   if (typeof entry.email === "string" && entry.email.trim()) {
+    const rawSection =
+      typeof entry.section === "string"
+        ? entry.section
+        : typeof entry.student_section === "string"
+        ? entry.student_section
+        : "";
     return {
       email: entry.email.trim(),
       name: typeof entry.name === "string" ? entry.name.trim() : "",
+      section: rawSection.trim(),
     };
   }
   return null;
@@ -978,12 +997,15 @@ async function fetchNextSeat(connection, eventId) {
   return rows[0];
 }
 
-async function createTicketWithQr(connection, { eventId, seat, email, name }) {
-  const ticketCode = `MMU-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+async function createTicketWithQr(
+  connection,
+  { eventId, seat, email, name, studentSection }
+) {
+  const ticketCode = `AITECH-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 
   const [ticketResult] = await connection.query(
-    "INSERT INTO tickets (ticket_code, user_email, user_name, event_id, seat_id, price) VALUES (?, ?, ?, ?, ?, ?)",
-    [ticketCode, email, name || null, eventId, seat.id, 0]
+    "INSERT INTO tickets (ticket_code, user_email, user_name, student_section, event_id, seat_id, price) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    [ticketCode, email, name || null, studentSection || null, eventId, seat.id, 0]
   );
 
   await connection.query("UPDATE seats SET status = 'sold' WHERE id = ?", [
@@ -996,6 +1018,7 @@ async function createTicketWithQr(connection, { eventId, seat, email, name }) {
     seat_id: seat.id,
     user_email: email,
     user_name: name || null,
+    student_section: studentSection || null,
     issued_at: new Date().toISOString(),
     nonce: uuidv4(),
   };
@@ -1109,6 +1132,7 @@ router.post(
           seat,
           email: person.email,
           name: person.name,
+          studentSection: person.section,
         });
 
         const seatLabel = `Section ${seat.section} Row ${seat.row_label} Seat ${seat.seat_number}`;
@@ -1118,6 +1142,7 @@ router.post(
           name: person.name || "Guest",
           email: person.email,
           event: event.name || "",
+          student_section: person.section || "",
           seat: seatLabel,
           ticket_code: ticketCode,
           qr_data_url: qrDataUrl,
@@ -1175,6 +1200,7 @@ router.post(
         details.push({
           email: person.email,
           name: person.name || null,
+          studentSection: person.section || null,
           seat: seatLabel,
           ticketCode,
         });

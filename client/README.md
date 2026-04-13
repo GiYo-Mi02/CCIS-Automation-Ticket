@@ -57,15 +57,17 @@ Visit `/events` to create or update events. The form supports:
 You can combine CSV uploads **and** manual entries in the bulk email widget. Each recipient line should follow:
 
 ```
-email,name,ticketData
+email,name,student_section
 ```
 
-Name and ticket data are optional. Example manual entries:
+Name and student section are optional. Example manual entries:
 
 ```
-user1@example.com,Jane Smith,Row A Seat 10
+user1@example.com,Jane Smith,BSCS 3A
 user2@example.com
 ```
+
+Google Forms CSV files are supported as long as they include an email column. If a column header contains "section", it will be mapped to the ticket's student section.
 
 ## Tailwind CSS
 
