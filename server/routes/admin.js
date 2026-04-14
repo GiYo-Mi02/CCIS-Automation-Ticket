@@ -958,7 +958,7 @@ router.post("/tickets/create", async (req, res, next) => {
 function normaliseRecipient(entry) {
   if (!entry) return null;
   if (typeof entry === "string") {
-    const email = entry.trim();
+    const email = entry.trim().toLowerCase();
     return email ? { email, name: "", section: "" } : null;
   }
   if (typeof entry.email === "string" && entry.email.trim()) {
@@ -969,12 +969,26 @@ function normaliseRecipient(entry) {
         ? entry.student_section
         : "";
     return {
-      email: entry.email.trim(),
+      email: entry.email.trim().toLowerCase(),
       name: typeof entry.name === "string" ? entry.name.trim() : "",
       section: rawSection.trim(),
     };
   }
   return null;
+}
+
+function dedupeRecipientsByEmail(recipients) {
+  const seen = new Set();
+  const deduped = [];
+
+  for (const recipient of recipients) {
+    const key = String(recipient.email || "").trim().toLowerCase();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    deduped.push({ ...recipient, email: key });
+  }
+
+  return deduped;
 }
 
 function interpolateTemplate(template, data) {
@@ -995,6 +1009,22 @@ async function fetchNextSeat(connection, eventId) {
     throw err;
   }
   return rows[0];
+}
+
+async function findExistingTicketForRecipient(connection, eventId, email) {
+  const [rows] = await connection.query(
+    `SELECT t.id, t.ticket_code, t.student_section, s.section, s.row_label, s.seat_number
+       FROM tickets t
+       LEFT JOIN seats s ON s.id = t.seat_id
+      WHERE t.event_id = ?
+        AND LOWER(t.user_email) = LOWER(?)
+        AND t.status <> 'cancelled'
+      ORDER BY t.created_at DESC, t.id DESC
+      LIMIT 1`,
+    [eventId, email]
+  );
+
+  return rows[0] || null;
 }
 
 async function createTicketWithQr(
@@ -1055,7 +1085,9 @@ router.post(
       .map((entry) => normaliseRecipient(entry))
       .filter(Boolean);
 
-    if (recipients.length === 0) {
+    const uniqueRecipients = dedupeRecipientsByEmail(recipients);
+
+    if (uniqueRecipients.length === 0) {
       return res
         .status(400)
         .json({ error: "No valid recipient emails were provided" });
@@ -1083,6 +1115,7 @@ router.post(
       }
 
       let queued = 0;
+      let skipped = 0;
       const details = [];
       const template =
         typeof bodyTemplate === "string" && bodyTemplate.trim()
@@ -1124,7 +1157,28 @@ router.post(
         posterAttachment = null;
       }
 
-      for (const person of recipients) {
+      for (const person of uniqueRecipients) {
+        const existingTicket = await findExistingTicketForRecipient(
+          connection,
+          eventId,
+          person.email
+        );
+
+        if (existingTicket) {
+          skipped += 1;
+          details.push({
+            email: person.email,
+            name: person.name || null,
+            studentSection:
+              existingTicket.student_section || person.section || null,
+            seat: formatSeat(existingTicket),
+            ticketCode: existingTicket.ticket_code,
+            status: "skipped",
+            reason: "duplicate_email_for_event",
+          });
+          continue;
+        }
+
         const seat = await fetchNextSeat(connection, eventId);
 
         const { ticketCode, qrDataUrl } = await createTicketWithQr(connection, {
@@ -1203,11 +1257,12 @@ router.post(
           studentSection: person.section || null,
           seat: seatLabel,
           ticketCode,
+          status: "queued",
         });
       }
 
       await connection.commit();
-      res.json({ queued, details });
+      res.json({ queued, skipped, details });
     } catch (err) {
       try {
         await connection.rollback();

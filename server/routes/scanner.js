@@ -36,6 +36,45 @@ router.post("/verify-qr", async (req, res, next) => {
   const ticketId = parsed.p.ticket_id;
 
   try {
+    const [claimedRows] = await pool.query(
+      `WITH claimed AS (
+         UPDATE tickets t
+            SET status = 'used', used_at = NOW()
+          WHERE t.id = ?
+            AND t.status = 'active'
+          RETURNING t.id, t.ticket_code, t.status, t.user_email, t.user_name, t.student_section, t.used_at, t.event_id, t.seat_id
+       )
+       SELECT c.id, c.ticket_code, c.status, c.user_email, c.user_name, c.student_section, c.used_at, c.event_id, c.seat_id,
+              e.name AS event_name,
+              s.section, s.row_label, s.seat_number
+         FROM claimed c
+         LEFT JOIN events e ON e.id = c.event_id
+         LEFT JOIN seats s ON s.id = c.seat_id
+        LIMIT 1`,
+      [ticketId]
+    );
+
+    const claimedTicket = claimedRows[0] || null;
+    if (claimedTicket) {
+      const usedAt =
+        claimedTicket.used_at instanceof Date
+          ? claimedTicket.used_at.toISOString()
+          : new Date(claimedTicket.used_at).toISOString();
+
+      return res.json({
+        ok: true,
+        message: "Ticket accepted",
+        ticketId: claimedTicket.id,
+        ticketCode: claimedTicket.ticket_code,
+        attendee: claimedTicket.user_email,
+        attendeeName: claimedTicket.user_name || null,
+        studentSection: claimedTicket.student_section || null,
+        eventName: claimedTicket.event_name || null,
+        seatLabel: buildSeatLabel(claimedTicket),
+        usedAt,
+      });
+    }
+
     const [[ticket]] = await pool.query(
       `SELECT t.id, t.ticket_code, t.status, t.user_email, t.user_name, t.student_section, t.used_at, t.event_id, t.seat_id,
               e.name AS event_name,
@@ -82,28 +121,7 @@ router.post("/verify-qr", async (req, res, next) => {
       });
     }
 
-    if (ticket.status !== "active") {
-      return res.status(409).json({ error: "Ticket is not valid" });
-    }
-
-    const usedAt = new Date();
-    await pool.query(
-      "UPDATE tickets SET status = 'used', used_at = ? WHERE id = ?",
-      [usedAt, ticketId]
-    );
-
-    res.json({
-      ok: true,
-      message: "Ticket accepted",
-      ticketId: ticket.id,
-      ticketCode: ticket.ticket_code,
-      attendee: ticket.user_email,
-      attendeeName: ticket.user_name || null,
-      studentSection: ticket.student_section || null,
-      eventName: ticket.event_name || null,
-      seatLabel: buildSeatLabel(ticket),
-      usedAt: usedAt.toISOString(),
-    });
+    return res.status(409).json({ error: "Ticket is not valid" });
   } catch (err) {
     next(err);
   }
