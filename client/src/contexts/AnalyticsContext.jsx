@@ -1,12 +1,14 @@
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { API_BASE, apiFetch } from '../api/client.js';
+import { useAuth } from './auth-context.js';
+import { AnalyticsContext } from './analytics-context.js';
 
-const AnalyticsContext = createContext(null);
 const STREAM_ENDPOINT = `${API_BASE}/api/admin/analytics/stream`;
 const OVERVIEW_ENDPOINT = '/api/admin/analytics/overview';
 const RECONNECT_DELAY_MS = 5000;
 
 function AnalyticsProvider({ children }) {
+  const { isAuthorized, isLoading: authLoading, session } = useAuth();
   const [snapshot, setSnapshot] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
@@ -14,8 +16,37 @@ function AnalyticsProvider({ children }) {
   const eventSourceRef = useRef(null);
   const retryRef = useRef(null);
 
+  const streamUrl = useMemo(() => {
+    const token = session?.access_token;
+    if (!token) return null;
+    return `${STREAM_ENDPOINT}?access_token=${encodeURIComponent(token)}`;
+  }, [session?.access_token]);
+
   useEffect(() => {
     let cancelled = false;
+
+    function cleanup() {
+      if (retryRef.current) {
+        clearTimeout(retryRef.current);
+        retryRef.current = null;
+      }
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+        eventSourceRef.current = null;
+      }
+    }
+
+    if (authLoading) {
+      return undefined;
+    }
+
+    if (!isAuthorized || !streamUrl) {
+      cleanup();
+      setIsConnected(false);
+      setIsLoading(false);
+      setError(null);
+      return undefined;
+    }
 
     async function fetchInitial() {
       setIsLoading(true);
@@ -36,17 +67,6 @@ function AnalyticsProvider({ children }) {
       }
     }
 
-    function cleanup() {
-      if (retryRef.current) {
-        clearTimeout(retryRef.current);
-        retryRef.current = null;
-      }
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-        eventSourceRef.current = null;
-      }
-    }
-
     function scheduleReconnect() {
       if (retryRef.current) return;
       retryRef.current = setTimeout(() => {
@@ -60,7 +80,7 @@ function AnalyticsProvider({ children }) {
     function connect() {
       cleanup();
       try {
-        const source = new EventSource(STREAM_ENDPOINT, { withCredentials: true });
+        const source = new EventSource(streamUrl);
 
         source.onmessage = (event) => {
           try {
@@ -96,7 +116,7 @@ function AnalyticsProvider({ children }) {
       cancelled = true;
       cleanup();
     };
-  }, []);
+  }, [authLoading, isAuthorized, streamUrl]);
 
   const value = useMemo(
     () => ({
@@ -112,12 +132,4 @@ function AnalyticsProvider({ children }) {
   return <AnalyticsContext.Provider value={value}>{children}</AnalyticsContext.Provider>;
 }
 
-function useAnalytics() {
-  const context = useContext(AnalyticsContext);
-  if (!context) {
-    throw new Error('useAnalytics must be used within an AnalyticsProvider');
-  }
-  return context;
-}
-
-export { AnalyticsProvider, useAnalytics };
+export { AnalyticsProvider };

@@ -3,7 +3,7 @@ import { apiFetch } from '../api/client.js';
 import SeatMap from '../components/SeatMap.jsx';
 import StatCard from '../components/StatCard.jsx';
 import TrendSparkline from '../components/TrendSparkline.jsx';
-import { useAnalytics } from '../contexts/AnalyticsContext.jsx';
+import { useAnalytics } from '../contexts/analytics-context.js';
 
 const DEFAULT_EVENT_ID = Number(import.meta.env.VITE_DEFAULT_EVENT_ID || 1);
 

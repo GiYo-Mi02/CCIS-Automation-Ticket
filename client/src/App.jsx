@@ -5,13 +5,17 @@ import {
   QrCodeIcon,
   WrenchScrewdriverIcon,
   Bars3Icon,
-  XMarkIcon
+  XMarkIcon,
+  ArrowRightOnRectangleIcon
 } from '@heroicons/react/24/outline';
 import { useState } from 'react';
 import DashboardPage from './pages/Dashboard.jsx';
 import EventsPage from './pages/Events.jsx';
 import ScannerPage from './pages/Scanner.jsx';
 import OperationsPage from './pages/Operations.jsx';
+import LoginPage from './pages/Login.jsx';
+import ProtectedRoute from './components/ProtectedRoute.jsx';
+import { useAuth } from './contexts/auth-context.js';
 
 const links = [
   { to: '/', label: 'Dashboard', icon: ChartBarIcon },
@@ -22,6 +26,39 @@ const links = [
 
 function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { isAuthorized, adminProfile, user, signOut, isLoading } = useAuth();
+
+  // If on the login page (or not yet authorized), render only the login route
+  // without the admin shell.
+  if (!isAuthorized && !isLoading) {
+    return (
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="*" element={<LoginPage />} />
+      </Routes>
+    );
+  }
+
+  // Show nothing until auth check completes
+  if (isLoading) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-white z-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="relative">
+            <div className="h-12 w-12 rounded-full border-[3px] border-gray-200" />
+            <div className="absolute inset-0 h-12 w-12 rounded-full border-[3px] border-t-gray-900 animate-spin" />
+          </div>
+          <p className="text-sm font-medium text-gray-500 animate-pulse">Loading…</p>
+        </div>
+      </div>
+    );
+  }
+
+  const displayName = adminProfile?.displayName || user?.user_metadata?.full_name || user?.email || '';
+  const displayEmail = adminProfile?.email || user?.email || '';
+  const initials = displayName
+    ? displayName.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
+    : displayEmail.slice(0, 2).toUpperCase();
 
   const SidebarContent = ({ isMobile }) => (
     <div className="flex flex-col flex-1 px-6 py-8 h-full">
@@ -60,11 +97,33 @@ function App() {
           </NavLink>
         ))}
       </nav>
-      <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 text-xs mt-auto">
-        <p className="font-semibold text-gray-900 mb-1">Tip</p>
-        <p className="text-gray-500">
-          Keep Operations and Scanner open in separate tabs during check-in for maximum efficiency.
-        </p>
+
+      {/* User profile + sign out */}
+      <div className="mt-auto pt-4 border-t border-gray-100">
+        <div className="flex items-center gap-3 px-2 py-3">
+          {user?.user_metadata?.avatar_url ? (
+            <img
+              src={user.user_metadata.avatar_url}
+              alt=""
+              className="h-9 w-9 rounded-full object-cover ring-2 ring-gray-100"
+            />
+          ) : (
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-900 text-white text-xs font-bold">
+              {initials}
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-gray-900 truncate">{displayName}</p>
+            <p className="text-xs text-gray-500 truncate">{displayEmail}</p>
+          </div>
+        </div>
+        <button
+          onClick={signOut}
+          className="mt-2 flex w-full items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600"
+        >
+          <ArrowRightOnRectangleIcon className="h-5 w-5" />
+          Sign out
+        </button>
       </div>
     </div>
   );
@@ -79,6 +138,13 @@ function App() {
           </button>
           <span className="text-lg font-semibold text-gray-900">CCIS Admin</span>
         </div>
+        {user?.user_metadata?.avatar_url ? (
+          <img src={user.user_metadata.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover ring-2 ring-gray-100" />
+        ) : (
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-900 text-white text-[10px] font-bold">
+            {initials}
+          </div>
+        )}
       </header>
 
       {/* Desktop Sidebar */}
@@ -100,11 +166,12 @@ function App() {
       <div className="flex flex-1 flex-col md:pl-64 min-h-screen pb-16 md:pb-0">
         <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-6 md:px-10 md:py-10">
           <Routes>
-            <Route path="/" element={<DashboardPage />} />
-            <Route path="/events" element={<EventsPage />} />
-            <Route path="/operations" element={<OperationsPage />} />
-            <Route path="/scanner" element={<ScannerPage />} />
-            <Route path="*" element={<DashboardPage />} />
+            <Route path="/" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+            <Route path="/events" element={<ProtectedRoute><EventsPage /></ProtectedRoute>} />
+            <Route path="/operations" element={<ProtectedRoute><OperationsPage /></ProtectedRoute>} />
+            <Route path="/scanner" element={<ProtectedRoute><ScannerPage /></ProtectedRoute>} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="*" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
           </Routes>
         </main>
       </div>

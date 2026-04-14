@@ -1,3 +1,5 @@
+import { supabase } from "../lib/supabase.js";
+
 const configuredApiBase = (import.meta.env.VITE_API_BASE_URL || "").trim();
 const API_BASE = configuredApiBase || (import.meta.env.DEV ? "http://localhost:4000" : "");
 
@@ -5,6 +7,15 @@ if (!configuredApiBase && !import.meta.env.DEV) {
   console.warn(
     "VITE_API_BASE_URL is not set. Production requests will use same-origin paths."
   );
+}
+
+async function getAuthToken() {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    return session?.access_token ?? null;
+  } catch {
+    return null;
+  }
 }
 
 function buildFetchOptions(options = {}) {
@@ -28,11 +39,51 @@ function buildFetchOptions(options = {}) {
 }
 
 async function apiFetch(path, options = {}) {
+  const { timeoutMs = 15000, ...requestOptions } = options;
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-  const response = await fetch(
-    `${API_BASE}${normalizedPath}`,
-    buildFetchOptions(options)
-  );
+  const fetchOptions = buildFetchOptions(requestOptions);
+
+  let timeoutId = null;
+  const timeoutController =
+    typeof AbortController !== "undefined" ? new AbortController() : null;
+
+  if (timeoutController && !fetchOptions.signal) {
+    fetchOptions.signal = timeoutController.signal;
+  }
+
+  if (timeoutController && Number(timeoutMs) > 0) {
+    timeoutId = setTimeout(() => {
+      timeoutController.abort();
+    }, Number(timeoutMs));
+  }
+
+  // Automatically attach the Supabase Bearer token if we have one
+  // and the caller hasn't already set an Authorization header
+  if (!fetchOptions.headers.has("Authorization")) {
+    const token = await getAuthToken();
+    if (token) {
+      fetchOptions.headers.set("Authorization", `Bearer ${token}`);
+    }
+  }
+
+  let response;
+  try {
+    response = await fetch(`${API_BASE}${normalizedPath}`, fetchOptions);
+  } catch (err) {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+    if (err?.name === "AbortError") {
+      const timeoutError = new Error("Request timed out");
+      timeoutError.status = 408;
+      throw timeoutError;
+    }
+    throw err;
+  }
+
+  if (timeoutId) {
+    clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     let errorPayload = null;

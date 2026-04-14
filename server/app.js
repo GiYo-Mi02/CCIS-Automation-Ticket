@@ -2,6 +2,8 @@ require("dotenv").config();
 const path = require("path");
 const express = require("express");
 const cors = require("cors");
+const { requireAuth } = require("./middleware/auth");
+const authRoutes = require("./routes/authRoutes");
 const adminRoutes = require("./routes/admin");
 const scannerRoutes = require("./routes/scanner");
 
@@ -37,13 +39,19 @@ app.use(
   })
 );
 
-app.use("/api/admin", adminRoutes);
-app.use("/api/scanner", scannerRoutes);
-
+// ── Public routes (no auth required) ──
 app.get("/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
+// Auth routes are partially public (check-access verifies the token itself)
+app.use("/api/auth", authRoutes);
+
+// ── Protected routes (require valid JWT + whitelisted email) ──
+app.use("/api/admin", requireAuth, adminRoutes);
+app.use("/api/scanner", requireAuth, scannerRoutes);
+
+// ── Global error handler ──
 app.use((err, req, res, _next) => {
   console.error(err);
   res.status(500).json({ error: err.message || "Internal Server Error" });
