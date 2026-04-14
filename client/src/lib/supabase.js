@@ -2,11 +2,22 @@ import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
+const supabaseConfigError =
+  "Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY in environment variables";
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error(
-    "Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY in environment variables"
-  );
+if (!isSupabaseConfigured) {
+  console.error(supabaseConfigError);
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const supabase = isSupabaseConfigured
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : null;
+
+export {
+  supabase,
+  supabaseUrl,
+  supabaseAnonKey,
+  isSupabaseConfigured,
+  supabaseConfigError,
+};

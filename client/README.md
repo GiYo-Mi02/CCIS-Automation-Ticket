@@ -27,6 +27,8 @@ React + Vite frontend for the CCIS ticket automation backend. Provides an admin 
    ```
 
    - `VITE_API_BASE_URL` – URL of the running backend (defaults to `http://localhost:4000`).
+   - `VITE_SUPABASE_URL` – Your Supabase project URL (`https://<project-ref>.supabase.co`).
+   - `VITE_SUPABASE_ANON_KEY` – Your Supabase anon/public key.
    - `VITE_DEFAULT_EVENT_ID` – Event to load on startup.
 
 3. Run the development server:
