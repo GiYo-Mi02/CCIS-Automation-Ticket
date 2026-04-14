@@ -37,11 +37,8 @@ function AuthProvider({ children }) {
     };
 
     try {
-      let tokenToUse = accessToken;
-      if (!tokenToUse) {
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
-        tokenToUse = currentSession?.access_token || null;
-      }
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      const tokenToUse = accessToken || currentSession?.access_token || null;
 
       if (!tokenToUse) {
         await forceSignOut();

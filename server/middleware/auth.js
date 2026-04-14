@@ -52,6 +52,12 @@ async function requireAuth(req, res, next) {
       error,
     } = await supabaseAuth.auth.getUser(token);
 
+    if (error) {
+      if (/invalid api key/i.test(error.message || "")) {
+        return res.status(500).json({ error: "Server auth configuration is invalid" });
+      }
+    }
+
     if (error || !user) {
       return res.status(401).json({ error: "Invalid or expired token" });
     }

@@ -33,7 +33,7 @@ router.post("/check-access", async (req, res, next) => {
     return res.status(401).json({ error: "Missing authorization header" });
   }
 
-  const token = authHeader.slice(7);
+  const token = authHeader.slice(7).trim();
 
   try {
     // Verify the token is real
@@ -41,6 +41,12 @@ router.post("/check-access", async (req, res, next) => {
       data: { user },
       error,
     } = await supabaseAuth.auth.getUser(token);
+
+    if (error) {
+      if (/invalid api key/i.test(error.message || "")) {
+        return res.status(500).json({ error: "Server auth configuration is invalid" });
+      }
+    }
 
     if (error || !user) {
       return res.status(401).json({ error: "Invalid or expired token" });
